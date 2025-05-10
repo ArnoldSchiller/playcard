@@ -212,3 +212,72 @@ After the configuration, you can restart your Apache or Nginx server:
 ### Troubleshooting:
 If you have problems loading the music files, check that the music files are in the correct folder and that the web server (Apache/Nginx) has the correct permissions to access this folder.
 
+## Systemd configuration for the automatic start of the Playcard server
+
+To ensure that the Flask server starts automatically when booting and runs in the background, you can create a Systemd service. Here is an example of a playcard.service file.
+### Step 1: Create the systemd service file
+
+Create a new service file for the Flask server:
+```bash
+sudo vi /etc/systemd/system/playcard.service
+```
+Add the following configuration to the file:
+```ini
+[Unit]
+Description=Playcard Flask Service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/usr/lib/cgi-bin
+ExecStart=/usr/bin/python3 /usr/lib/cgi-bin/playcard_server.py
+Restart=always
+RestartSec=3
+Environment="FLASK_ENV=production"
+
+[Install]
+WantedBy=multi-user.target
+```
+If /usr/lib/cgi-bin/playcard_server.py is not located there, adjust the path accordingly.
+
+### Step 2: Reload the systemd services and start the service
+
+
+
+After you have created the service file, you can reload the service and start the Flask server:
+```bash
+# Reload systemd services
+sudo systemctl daemon-reload
+
+# Start Flask server
+sudo systemctl start playcard.service
+
+# Configure Flask server to start on boot
+sudo systemctl enable playcard.service
+```
+### Step 3: Checking the service status
+
+You can check the status of the Flask server to ensure that the service is running correctly:
+```bash
+sudo systemctl status playcard.service
+```
+If the server is running successfully, you should see something like this
+
+● playcard.service - Playcard Flask Service
+ Loaded: loaded (/etc/systemd/system/playcard.service; enabled; vendor preset: enabled)
+ Active: active (running) since <timestamp>; <time> ago
+ Main PID: <PID> (python3)
+ CGroup: /system.slice/playcard.service
+ └─<PID> /usr/bin/python3 /usr/lib/cgi-bin/playcard_server.py
+
+### Step 4: Troubleshooting
+
+If the service does not start, you can view the logs with journalctl to detect possible errors:
+
+```bash
+sudo journalctl -u playcard.service
+```
+With these instructions, you can start the Playcard server automatically and ensure that it is running when the system boots.
+
+If you still want to make adjustments to the configuration, such as the user or the path to your script, you can do this in the playcard.service file.
