@@ -24,7 +24,6 @@ This script does not include full security hardening and is provided for educati
     Use HTTPS
 
     Harden headers via your reverse proxy or WSGI server
-
     Protect media files from unwanted access
 
     Sanitize inputs further (especially if allowing uploads)
@@ -38,10 +37,13 @@ This script does not include full security hardening and is provided for educati
     Flask-Limiter
 
 Install dependencies with:
-
+```bash
 pip install flask flask-limiter
+```
 or
+```bash
 apt install python3-flask python3-flask-limiter
+```
 🔧 Configuration
 
 Open playcard_server.py and set your audio directory:
