@@ -83,7 +83,18 @@ Useful for social media previews!
 
     File headers are validated (MP3 ID3, OGG, MP4, etc.).
 
-🧾 License
 
-MIT © Arnold Schiller
-Feel free to fork and adapt.
+## Description
+A lightweight server to play audio files via HTTP. Ideal for personal radio stations.
+
+## License
+This project is licensed under the BSD 2-Clause License - see the [LICENSE](LICENSE) file for details.
+
+![License](https://img.shields.io/badge/license-BSD%202--Clause-blue.svg)
+
+## Setup
+Please set the `AUDIO_PATH` variable to the location of your music files before running the server.
+
+```python
+AUDIO_PATH = "/path/to/your/music/folder"
+
