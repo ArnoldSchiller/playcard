@@ -98,3 +98,18 @@ Please set the `AUDIO_PATH` variable to the location of your music files before 
 ```python
 AUDIO_PATH = "/path/to/your/music/folder"
 
+## Installation
+
+
+Clone this repository.
+
+Install the necessary dependencies.
+
+pip install -r requirements.txt
+
+Run the server:
+
+    python playcard_server.py
+
+    Visit http://127.0.0.1:8010 in your browser to access the server.
+
