@@ -193,3 +193,22 @@ server {
     # Make sure that the Python server has access to this folder
 }
 ```
+
+
+## Important notes:
+
+    Audio path:
+    Make sure the Python server has access to the music folder you specified in the AUDIO_PATH in your Python script. The Apache or Nginx server must also have access to this folder so that the files can be delivered correctly.
+
+    Proxy configuration:
+    The Apache and Nginx configurations forward requests for /music/playcard to the local Flask server running at http://127.0.0.1:8010. If you change the port or address, make sure you adjust the configuration accordingly.
+
+    Testing:
+    After the configuration, you can restart your Apache or Nginx server:
+
+    sudo systemctl restart apache2
+    sudo systemctl restart nginx
+
+    Troubleshooting:
+    If you have problems loading the music files, check that the music files are in the correct folder and that the web server (Apache/Nginx) has the correct permissions to access this folder.
+
