@@ -40,7 +40,8 @@ This script does not include full security hardening and is provided for educati
 Install dependencies with:
 
 pip install flask flask-limiter
-
+or
+apt install python3-flask python3-flask-limiter
 🔧 Configuration
 
 Open playcard_server.py and set your audio directory:
