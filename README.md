@@ -167,3 +167,29 @@ Add the following configuration to your Apache configuration file (usually in /e
 # Make sure that the Python server has access to this folder
 
 ```
+
+## Nginx configuration
+Example configuration for Nginx:
+
+If you are using Nginx, you can use the following configuration in your Nginx configuration file (/etc/nginx/sites-available/default or another file):
+
+```nginx
+# Example for Nginx configuration
+
+server {
+    listen 80;
+    server_name yourdomain.com; # Replace with your actual domain name or IP address
+
+    location /music/playcard {
+        proxy_pass http://127.0.0.1:8010/musik/playcard; # Forward to the Flask server
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # **Your Audio Path Configuration** 
+    # Replace the path with the path to your music folder, e.g. /var/www/html/music/ogg
+    # Make sure that the Python server has access to this folder
+}
+```
