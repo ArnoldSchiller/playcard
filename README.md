@@ -302,3 +302,8 @@ The Flask Limiter extension ensures that the number of requests per IP address i
 ### File access check:
 Checks whether the requested file actually exists in the specified directory and whether access to the file is allowed (avoiding security issues such as directory traversal).
 
+## Further notes:
+
+If you are using the script in a production environment, remember to take the appropriate security measures, e.g. enforce HTTPS, and make sure that sensitive data is not exposed in logs or error messages.
+
+Secure it against cross-site scripting in Apache with mod_security.
