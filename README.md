@@ -281,3 +281,24 @@ sudo journalctl -u playcard.service
 With these instructions, you can start the Playcard server automatically and ensure that it is running when the system boots.
 
 If you still want to make adjustments to the configuration, such as the user or the path to your script, you can do this in the playcard.service file.
+
+## Remarks
+
+### Environment variable for the audio path:
+The path to the music file is set by AUDIO_PATH = os.environ.get("AUDIO_PATH", None). If this value is not set, the error "Server not configured. Please set AUDIO_PATH as an environment variable." is returned, informing the user that they must set the path.
+
+### Allowed file extensions:
+Only .mp3, .mp4 and .ogg are accepted as permitted audio formats. This ensures that no unwanted or dangerous file types are served.
+
+### File and title matching:
+The script checks whether the requested file exists in the specified AUDIO_PATH and whether it has the correct file extensions. If no file is specified, a list of available tracks is displayed.
+
+### Open Graph (OG) meta tags:
+When the page is shared on social media, OG metadata is included to create an engaging preview, including a cover image and audio file.
+
+### Limiting:
+The Flask Limiter extension ensures that the number of requests per IP address is limited to 100 per minute.
+
+### File access check:
+Checks whether the requested file actually exists in the specified directory and whether access to the file is allowed (avoiding security issues such as directory traversal).
+
