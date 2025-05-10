@@ -97,6 +97,8 @@ Please set the `AUDIO_PATH` variable to the location of your music files before 
 
 ```python
 AUDIO_PATH = "/path/to/your/music/folder"
+```
+
 
 ## Installation
 
