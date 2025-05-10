@@ -58,10 +58,10 @@ By default, the server runs at http://127.0.0.1:8010.
 You can:
 
     View available tracks:
-    http://localhost:8010/musik/playcard
+    http://localhost:8010/music/playcard
 
     Play a specific file:
-    http://localhost:8010/musik/playcard?title=yourfilename&ext=mp3
+    http://localhost:8010/music/playcard?title=yourfilename&ext=mp3
 
 If a cover image yourfilename.jpeg exists in the same folder, it will be displayed.
 🌐 Open Graph Metadata
@@ -95,6 +95,7 @@ This project is licensed under the BSD 2-Clause License - see the [LICENSE](LICE
 ## Setup
 Please set the `AUDIO_PATH` variable to the location of your music files before running the server.
 
+
 ```python
 AUDIO_PATH = "/path/to/your/music/folder"
 ```
@@ -115,3 +116,54 @@ Run the server:
 
     Visit http://127.0.0.1:8010 in your browser to access the server.
 
+
+## Apache configuration
+
+Make sure that you have activated mod_proxy and mod_proxy_http. You can activate these modules, if they are not yet activated, with :
+```bash
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+```
+
+
+Add the following configuration to your Apache configuration file (usually in /etc/apache2/sites-available/000-default.conf or any other file you use) you can also use conf-available for a playcard-proxy.conf
+
+```apache
+# Example for Apache configuration
+
+
+# Make sure that CGI is activated
+
+<Directory “/usr/lib/cgi-bin”>
+
+    AllowOverride None
+
+    Options +ExecCGI
+
+    AddHandler cgi-script .cgi .py
+
+    Require all granted
+
+</Directory>
+
+
+# Example for proxy configuration
+
+<IfModule mod_proxy.c>
+
+    # Forward requests for /music/folder to the Flask server
+
+    ProxyPass “/playcard” “http://127.0.0.1:8010/playcard”
+
+    ProxyPassReverse “/playcard” “http://127.0.0.1:8010/playcard”
+
+</IfModule>
+
+
+# **Your Audio Path Configuration** 
+
+# Replace the path with the path to your music folder, e.g. /var/www/html/music/
+
+# Make sure that the Python server has access to this folder
+
+```
