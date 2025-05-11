@@ -1,13 +1,23 @@
-import re
-import urllib.parse
-from flask import Flask, send_from_directory, abort, request
-from urllib.parse import urlparse
 import os
+import re
+import html
+import urllib.parse
+import unicodedata
+import locale
+from urllib.parse import urlparse
+from flask import Flask, send_from_directory, abort, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-app = Flask(__name__)
+# Lokale Umgebung bevorzugt, sonst Umgebungsvariable
+AUDIO_PATH = "/var/www/html/musik/" if os.path.isdir("/var/www/html/musik/") else os.environ.get("AUDIO_PATH")
+if AUDIO_PATH is None:
+    raise RuntimeError("Bitte setze die Umgebungsvariable AUDIO_PATH oder verwende den Standardpfad.")
 
+ALLOWED_EXTENSIONS = ['.mp3', '.mp4', '.ogg']
+EXT_PRIORITY = {'.mp3': 1, '.mp4': 2, '.ogg': 3}
+
+app = Flask(__name__)
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri="memcached://127.0.0.1:11211",
@@ -15,56 +25,37 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
-# Set your audio directory path here
-AUDIO_PATH = os.environ.get("AUDIO_PATH", None)
+locale.setlocale(locale.LC_ALL, '')
 
-ALLOWED_EXTENSIONS = ['.mp3', '.mp4', '.ogg']
-EXT_PRIORITY = {'.mp3': 1, '.mp4': 2, '.ogg': 3}
+def sort_key_locale(title):
+    title = title.strip()
+    if not title:
+        return (3, '')
+    first_char = title[0]
+    if re.match(r'[A-Za-z]', first_char):
+        priority = 0
+    elif re.match(r'\d', first_char):
+        priority = 2
+    else:
+        priority = 1
+    return (priority, title.lower())
 
-def sort_key(title):
-    return (not re.match(r'^[A-Za-z]', title), title.lower())
-
-def is_allowed_extension(filename):
-    return any(filename.endswith(ext) for ext in ALLOWED_EXTENSIONS)
-
-def is_valid_audiofile(filename):
-    if not any(filename.endswith(ext) for ext in ALLOWED_EXTENSIONS):
-        return False
-
-    try:
-        with open(filename, 'rb') as f:
-            header = f.read(4)
-            if header.startswith(b'ID3'):
-                return True
-            elif header.startswith(b'OggS'):
-                return True
-            elif header[0:4] == b'ftyp':
-                return True
-            elif filename.endswith('.mid'):
-                return True
-    except Exception as e:
-        print(f"Error reading file {filename}: {e}")
-        return False
-
-    return False
-
-@app.route("/playcard")
+@app.route("/musik/playcard")
 @limiter.limit("100 per minute")
 def playcard():
-    if AUDIO_PATH is None:
-        return "Server not configured. Please set AUDIO_PATH as an environment variable.", 500
-
-    title = os.path.basename(request.args.get("title", "")).strip()
     raw_title = request.args.get("title", "").strip()
+    raw_title = unicodedata.normalize("NFC", raw_title)
+    requested_ext = request.args.get("ext")
 
-    if raw_title.startswith("http"):
-        parsed = urlparse(raw_title)
+    url_match = re.search(r'https?://[^\s]+', raw_title)
+    if url_match:
+        parsed = urlparse(url_match.group(0))
         title_with_ext = os.path.basename(parsed.path)
     else:
         title_with_ext = os.path.basename(raw_title)
 
     title, ext_from_title = os.path.splitext(title_with_ext)
-    requested_ext = request.args.get('ext')
+    title = unicodedata.normalize("NFC", title.strip())
 
     search_extensions = []
     if requested_ext:
@@ -77,20 +68,18 @@ def playcard():
     if not title:
         files = os.listdir(AUDIO_PATH)
         titles = {}
-
         for f in files:
             base, ext = os.path.splitext(f)
+            base = unicodedata.normalize("NFC", base.strip())
             if ext in ALLOWED_EXTENSIONS:
                 if base not in titles or EXT_PRIORITY[ext] < EXT_PRIORITY[titles[base]]:
                     titles[base] = ext
-
-        html = "<html><head><title>Available Titles</title></head><body background=\"https://jaquearnoux.de/radio.png\"><h1>Select a title</h1><ul>"
-        for base in sorted(titles.keys(), key=sort_key):
+        html_page = "<html><head><title>Verfügbare Titel</title></head><body background=\"https://jaquearnoux.de/radio.png\"><h1>Wähle einen Titel</h1><ul>"
+        for base in sorted(titles.keys(), key=sort_key_locale):
             ext = titles[base]
-            html += f'<li><a href="/playcard?title={base}&ext={ext[1:]}">{base} ({ext[1:]})</a></li>'
-        html += "</ul></body></html>"
-
-        return html
+            html_page += f'<li><a href="/musik/playcard?title={urllib.parse.quote(base)}&ext={ext[1:]}">{html.escape(base)} ({ext[1:]})</a></li>'
+        html_page += "</ul></body></html>"
+        return html_page
 
     file_path = None
     file_extension = None
@@ -102,37 +91,38 @@ def playcard():
             break
 
     if not file_path or not file_path.startswith(os.path.abspath(AUDIO_PATH)):
-        return abort(404, "File not found or access denied.")
+        return abort(403, "Zugriff verweigert.")
 
     imgpath = os.path.join(AUDIO_PATH, f"{title}.jpeg")
-    img_html = f'<img src="/media/{title}.jpeg" width="300"><br>' if os.path.isfile(imgpath) else ""
+    img_html = f'<img src="/musik/ogg/{urllib.parse.quote(title)}.jpeg" width="300"><br>' if os.path.isfile(imgpath) else ""
 
-    media_url = f"/media/{title}{file_extension}"
+    # Host-URL ermitteln, damit OpenGraph immer korrekt ist
+    base_url = request.url_root.rstrip('/')
 
-    html = f"""<!DOCTYPE html>
-<html prefix=\"og: http://ogp.me/ns#\">
+    html_out = f"""<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns#">
   <head>
-    <meta charset=\"utf-8\"><title>{title}</title>
-    <meta property=\"og:audio\" content=\"https://example.com{media_url}\" />
-    <meta property=\"og:audio:secure_url\" content=\"https://example.com{media_url}\" />
-    <meta property=\"og:audio:type\" content=\"audio/{file_extension[1:]}\" />
-    <meta property=\"og:type\" content=\"music\" />
-    <meta property=\"og:video\" content=\"https://example.com{media_url}\">
-    <meta property=\"og:video:secure_url\" content=\"https://example.com{media_url}\">
-    <meta property=\"og:url\" content=\"https://example.com/playcard?title={title}\" />
-    <meta property=\"og:title\" content=\"Jaque Arnoux Radio {title}\" />
-    <meta property=\"og:image\" content=\"https://example.com/radio.png\" />
+    <meta charset="utf-8"><title>{html.escape(title)}</title>
+    <meta property="og:audio" content="{base_url}/musik/ogg/{urllib.parse.quote(title)}{file_extension}" />
+    <meta property="og:audio:secure_url" content="{base_url}/musik/ogg/{urllib.parse.quote(title)}{file_extension}" />
+    <meta property="og:audio:type" content="audio/{file_extension[1:]}" />
+    <meta property="og:type" content="music" />
+    <meta property="og:video" content="{base_url}/musik/ogg/{urllib.parse.quote(title)}{file_extension}">
+    <meta property="og:video:secure_url" content="{base_url}/musik/ogg/{urllib.parse.quote(title)}{file_extension}">
+    <meta property="og:url" content="{base_url}/musik/playcard?title={urllib.parse.quote(title)}" />
+    <meta property="og:title" content="Jaque Arnoux Radio {html.escape(title)}" />
+    <meta property="og:image" content="https://jaquearnoux.de/radio.png" />
   </head>
-  <body background=\"https://example.com/radio.png\">
+  <body background="https://jaquearnoux.de/radio.png">
     <audio controls autoplay>
-      <source src=\"{media_url}\" type=\"audio/{file_extension[1:]}\">
-      Your browser cannot play this audio.
+      <source src="/musik/ogg/{urllib.parse.quote(title)}{file_extension}" type="audio/{file_extension[1:]}">
+      Dein Browser kann das Audio nicht wiedergeben.
     </audio>
     {img_html}
   </body>
 </html>"""
-
-    return html
+    return html_out
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8010)
+
