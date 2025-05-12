@@ -23,12 +23,34 @@ ALLOWED_EXTENSIONS = ['.mp3', '.mp4', '.ogg']
 EXT_PRIORITY = {'.mp3': 1, '.mp4': 2, '.ogg': 3}
 
 # --- Initialize Flask app ---
+# Check if memcached is available
+try:
+    import pymemcache.client
+    use_memcached = True
+except ImportError:
+    use_memcached = False
+
+# Create Flask app
 app = Flask(__name__)
-limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri="memcached://127.0.0.1:11211",
-    default_limits=["100 per minute"]
-)
+
+# Conditionally configure Flask-Limiter
+if use_memcached:
+    # If pymemcache is available, use memcached
+    limiter = Limiter(
+        key_func=get_remote_address,
+        app=app,
+        storage_uri="memcached://127.0.0.1:11211",
+        default_limits=["100 per minute"]
+    )
+else:
+    # Otherwise, use in-memory storage
+    limiter = Limiter(
+        key_func=get_remote_address,
+        app=app,
+        default_limits=["100 per minute"]
+    )
+
+
 limiter.init_app(app)
 locale.setlocale(locale.LC_ALL, '')
 
