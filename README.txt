@@ -14,22 +14,30 @@ Supports OpenGraph previews (ideal for Discord, Telegram, etc.).
 
 ## 🚀 Quick Start
 
-1. Install Python dependencies:
+### 1. Install Python dependencies
+
+You can install dependencies via `pip`:
 
 ```
 pip install flask flask-limiter
 ```
 
-2. Set your audio path:
+Or via `apt` (recommended on Debian/Ubuntu):
+
+```
+sudo apt install python3-flask python3-flask-limiter
+```
+
+### 2. Set your audio path:
 
 ```
 export AUDIO_PATH="/absolute/path/to/your/audio/files"
 ```
 
-3. Run the server:
+### 3. Run the server:
 
 ```
-python playcard_server.py
+python3 playcard_server.py
 ```
 
 By default the app runs on: `http://127.0.0.1:8010`
@@ -149,5 +157,3 @@ See [LICENSE](LICENSE) for details.
 ![License](https://img.shields.io/badge/license-BSD%202--Clause-blue.svg)
 
 ---
-
-
