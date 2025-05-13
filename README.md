@@ -211,15 +211,6 @@ Useful for social media previews!
 
     File headers are validated (MP3 ID3, OGG, MP4, etc.).
 
-
-## Description
-A lightweight server to play audio files via HTTP. Ideal for personal radio stations.
-
-## License
-This project is licensed under the BSD 2-Clause License - see the [LICENSE](LICENSE) file for details.
-
-![License](https://img.shields.io/badge/license-BSD%202--Clause-blue.svg)
-
 ## Setup
 Please set the `AUDIO_PATH` variable to the location of your music files before running the server.
 
@@ -281,16 +272,16 @@ Add the following configuration to your Apache configuration file (usually in /e
 
     # Forward requests for /music/folder to the Flask server
 
-    ProxyPass “/playcard” “http://127.0.0.1:8010/playcard”
+    ProxyPass “/playcard” “http://127.0.0.1:8010/musik/playcard”
 
-    ProxyPassReverse “/playcard” “http://127.0.0.1:8010/playcard”
+    ProxyPassReverse “/playcard” “http://127.0.0.1:8010/musik/playcard”
 
 </IfModule>
 
 
 # **Your Audio Path Configuration** 
 
-# Replace the path with the path to your music folder, e.g. /var/www/html/music/
+# Replace the path with the path to your playcard folder, e.g. /var/www/html/playcard/
 
 # Make sure that the Python server has access to this folder
 
