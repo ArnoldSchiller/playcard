@@ -1,22 +1,29 @@
 🎵 Playcard Audio Server
 
-This is a minimal Flask-based audio file server that provides a basic HTML5 interface for playing audio via URLs. It also offers Open Graph (OG) metadata for integration in platforms like Discord or Facebook.
-🚀 Features
+A lightweight Flask web app to browse and stream music files (`.mp3`, `.ogg`, `.mp4`) from local folders via OpenGraph-enabled web pages.
 
-    Streams .mp3, .ogg, .mp4 audio files
+## Features
 
-    Auto-generates an audio player page with <audio> tag
+- Browse audio files in multiple directories
+- Auto-generated playback pages with OpenGraph metadata (great for Discord / social media sharing)
+- Rate-limited (via `Flask-Limiter`, optional memcached)
+- Unicode-safe and locale-aware sorting
 
-    Displays available tracks if no specific title is requested
+## Configuration
 
-    Includes basic Open Graph metadata for previews
+Set audio source directories by editing the `MEDIA_DIRS` list or exporting an `AUDIO_PATH` environment variable.
 
-    Optional cover image display (title.jpeg)
+## Requirements
 
-    Secure extension filtering
+- Python 3.7+
+- Flask
+- Optional: `pymemcache` for better rate limiting
 
-    Rate limiting via Flask-Limiter
+## Run
 
+```bash
+python playcard_server.py
+```
 ⚠️ Disclaimer
 
 This script does not include full security hardening and is provided for educational or internal use. If exposed publicly, make sure to:
