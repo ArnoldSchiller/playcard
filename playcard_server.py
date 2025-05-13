@@ -68,6 +68,16 @@ def sort_key_locale(title):
         priority = 1
     return (priority, title.lower())
 
+def safe_quote(text):
+    try:
+        return urllib.parse.quote(text)
+    except UnicodeEncodeError:
+        # Als Fallback defekte Zeichen durch Ersatzzeichen ersetzen
+        return urllib.parse.quote(text.encode("utf-8", "replace").decode("utf-8"))
+
+
+
+
 @app.route(f"/{MUSIC_PATH}/playcard")
 @limiter.limit("100 per minute")
 def playcard():
@@ -152,7 +162,12 @@ def playcard():
         for folder_display in sorted_folders:
             html_page += f"<h2>{html.escape(folder_display)}</h2><ul>"
             for full_title, ext in folder_map[folder_display]:
-                quoted_title = urllib.parse.quote(full_title)
+                try:
+                    safe_title = full_title.encode('utf-8', 'surrogateescape').decode('utf-8')
+                    quoted_title = urllib.parse.quote(safe_title)
+                except Exception as e:
+                    print(f"[WARN] Fehler beim Quoten von {full_title!r}: {e}")
+                    continue  # Datei überspringen, wenn wirklich unrettbar
                 html_page += f'<li><a href="/{MUSIC_PATH}playcard?title={quoted_title}&ext={ext[1:]}">{html.escape(os.path.basename(full_title))} ({ext[1:]})</a></li>'
             html_page += "</ul>"
 
