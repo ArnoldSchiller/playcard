@@ -8,26 +8,42 @@ from flask import Flask, send_from_directory, abort, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# --- Konfiguration ---
+# -------------------------------
+# Configuration
+# -------------------------------
+
+# Base server directory
 SERVERROOT = "/var/www/html"
+
+# Path used in URLs
 MUSIC_PATH = "musik"
 
-# Mehrere Medienverzeichnisse
+# Optional media directories (checked in order)
 MEDIA_DIRS = [
     os.path.join(SERVERROOT, "musik", "ogg"),
-    os.path.join(SERVERROOT, "alt"),
-    os.environ.get("AUDIO_PATH")  # optional
+    os.path.join(SERVERROOT, "/home/radio"),
+    os.environ.get("AUDIO_PATH")  # Can be set via environment
 ]
+
+# Filter valid, existing directories
 MEDIA_DIRS = [os.path.abspath(d) for d in MEDIA_DIRS if d and os.path.isdir(d)]
 
 if not MEDIA_DIRS:
-    raise RuntimeError("Keine gültigen MEDIA_DIRS gefunden!")
+    raise RuntimeError("No valid media directories found.")
 
+# Allowed audio file extensions
 ALLOWED_EXTENSIONS = ['.mp3', '.mp4', '.ogg']
+
+# Set locale for proper sorting (e.g. with German umlauts)
 locale.setlocale(locale.LC_ALL, '')
+
+# -------------------------------
+# App Setup
+# -------------------------------
 
 app = Flask(__name__)
 
+# Use Memcached if available for rate limiting
 try:
     import pymemcache.client
     use_memcached = True
@@ -43,7 +59,12 @@ limiter = Limiter(
 
 limiter.init_app(app)
 
+# -------------------------------
+# Utility Functions
+# -------------------------------
+
 def sort_key_locale(title):
+    """Sort titles by first character type: letters first, then symbols, then numbers."""
     title = title.strip()
     if not title:
         return (3, '')
@@ -57,6 +78,7 @@ def sort_key_locale(title):
     return (priority, title.lower())
 
 def find_file(title_path, extensions):
+    """Search for a file by normalized title and extension in MEDIA_DIRS."""
     title_normalized = unicodedata.normalize("NFC", os.path.splitext(title_path.strip())[0])
     for media_root in MEDIA_DIRS:
         candidate_path = os.path.join(media_root, title_path)
@@ -74,8 +96,21 @@ def find_file(title_path, extensions):
                     return os.path.join(root, f), f, ext
     return None, None, None
 
+def safe_quote(text):
+    """Safely quote a string for use in URLs."""
+    try:
+        return urllib.parse.quote(text)
+    except (UnicodeEncodeError, UnicodeDecodeError) as e:
+        print(f"[WARN] Failed to quote {text!r}: {e}")
+        return None
+
+# -------------------------------
+# Routes
+# -------------------------------
+
 @app.route(f"/{MUSIC_PATH}/playcard/<path:title>")
 def playcard_audio(title):
+    """Serve a specific audio file."""
     title_path = unicodedata.normalize("NFC", title)
     for media_root in MEDIA_DIRS:
         full_path = os.path.normpath(os.path.join(media_root, title_path))
@@ -87,6 +122,7 @@ def playcard_audio(title):
 @app.route(f"/{MUSIC_PATH}/playcard")
 @limiter.limit("100 per minute")
 def playcard():
+    """List or serve a playable page for a given title."""
     raw_title = request.args.get("title", "").strip()
     requested_ext = request.args.get("ext")
     raw_title = urllib.parse.unquote(raw_title).replace("\\", "/")
@@ -94,8 +130,8 @@ def playcard():
     search_extensions = [f".{requested_ext.lower()}"] if requested_ext else ALLOWED_EXTENSIONS
 
     if not raw_title:
+        # Generate HTML list of available files
         folder_map = {}
-
         for media_root in MEDIA_DIRS:
             for root, dirs, files in os.walk(media_root):
                 rel_dir = os.path.relpath(root, media_root)
@@ -103,8 +139,7 @@ def playcard():
                     base, ext = os.path.splitext(f)
                     if ext.lower() in ALLOWED_EXTENSIONS:
                         rel_file = os.path.relpath(os.path.join(root, f), media_root).replace("\\", "/")
-                        base_clean = unicodedata.normalize("NFC", base.strip())
-                        folder_display = rel_dir if rel_dir != "." else "Alle Titel"
+                        folder_display = rel_dir if rel_dir != "." else "All Titles"
                         if folder_display not in folder_map:
                             folder_map[folder_display] = []
                         folder_map[folder_display].append((rel_file, ext.lower()))
@@ -114,20 +149,23 @@ def playcard():
 
         sorted_folders = sorted(folder_map.keys(), key=lambda k: sort_key_locale(k))
 
-        html_page = "<html><head><title>Verfügbare Titel</title></head><body background=\"https://jaquearnoux.de/radio.png\"><h1>Wähle einen Titel</h1>"
+        html_page = "<html><head><title>Available Tracks</title></head><body background=\"https://jaquearnoux.de/radio.png\"><h1>Select a Track</h1>"
         for folder_display in sorted_folders:
             html_page += f"<h2>{html.escape(folder_display)}</h2><ul>"
             for full_title, ext in folder_map[folder_display]:
-                quoted_title = urllib.parse.quote(full_title)
+                quoted_title = safe_quote(full_title)
+                if not quoted_title:
+                    continue
                 html_page += f'<li><a href="/{MUSIC_PATH}/playcard?title={quoted_title}&ext={ext[1:]}">{html.escape(os.path.basename(full_title))} ({ext[1:]})</a></li>'
             html_page += "</ul>"
         html_page += "</body></html>"
         return html_page
 
+    # Serve single track
     file_path, file_name_exact, file_extension = find_file(raw_title, search_extensions)
 
     if not file_path:
-        return abort(404, "Datei nicht gefunden.")
+        return abort(404, "File not found.")
 
     playcard_rel_path = None
     for media_root in MEDIA_DIRS:
@@ -136,25 +174,24 @@ def playcard():
             break
 
     if not playcard_rel_path:
-        return abort(403, "Zugriff verweigert.")
-    
-    # Versuche die Basis-URL mit den Proxy-Headern
+        return abort(403, "Access denied.")
+
+    # Build base URL (supporting reverse proxy headers)
     scheme = request.headers.get("X-Forwarded-Proto", request.scheme)
     host = request.headers.get("X-Forwarded-Host", request.host)
-    base_url = f"{scheme}://{host}".rstrip("/")	
-    # base_url = f"{request.scheme}://{request.environ.get('HTTP_HOST')}"    
-    # base_url = request.host_url.rstrip("/")
+    base_url = f"{scheme}://{host}".rstrip("/")
 
-    quoted_file = urllib.parse.quote(playcard_rel_path)
+    quoted_file = safe_quote(playcard_rel_path)
     audio_url = f"{base_url}/{MUSIC_PATH}/playcard/{quoted_file}"
 
-    # Bild optional
+    # Optional cover image (same name + .jpeg)
     imgpath = os.path.splitext(file_path)[0] + ".jpeg"
     img_html = ""
     if os.path.isfile(imgpath):
         img_rel = urllib.parse.quote(os.path.relpath(imgpath, media_root).replace("\\", "/"))
         img_html = f'<img src="/{MUSIC_PATH}/playcard/{img_rel}" width="300"><br>'
 
+    # Render playback page
     html_out = f"""<!DOCTYPE html>
 <html prefix="og: http://ogp.me/ns#">
   <head>
@@ -172,7 +209,7 @@ def playcard():
   <body background="https://jaquearnoux.de/radio.png">
     <audio controls autoplay>
       <source src="{audio_url}" type="audio/{file_extension[1:]}">
-      Dein Browser kann Audio nicht abspielen.
+      Your browser does not support audio playback.
     </audio>
     {img_html}
     <script src="radio.js" async></script>
@@ -182,6 +219,9 @@ def playcard():
 """
     return html_out
 
+# -------------------------------
+# Main Entry Point
+# -------------------------------
+
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8010)
-
