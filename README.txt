@@ -1,89 +1,159 @@
-🎵 Playcard Audio Server
+# 🎵 Playcard Audio Server
 
-This is a minimal Flask-based audio file server that provides a basic HTML5 interface for playing audio via URLs. It also offers Open Graph (OG) metadata for integration in platforms like Discord or Facebook.
-🚀 Features
+A lightweight Flask web app to browse and stream `.mp3`, `.ogg`, `.mp4` audio files from a local folder.  
+Supports OpenGraph previews (ideal for Discord, Telegram, etc.).
 
-    Streams .mp3, .ogg, .mp4 audio files
+## ✨ Features
 
-    Auto-generates an audio player page with <audio> tag
+- Browse and play audio files from a specified directory
+- Auto-generated player pages with OpenGraph metadata
+- Social-media-ready previews (og:image, og:title, og:audio)
+- Built-in rate limiting (100 req/min per IP)
+- Unicode-safe, locale-aware filename sorting
+- Minimal dependencies, runs with a single script
 
-    Displays available tracks if no specific title is requested
+## 🚀 Quick Start
 
-    Includes basic Open Graph metadata for previews
+### 1. Install Python dependencies
 
-    Optional cover image display (title.jpeg)
+You can install dependencies via `pip`:
 
-    Secure extension filtering
-
-    Rate limiting via Flask-Limiter
-
-⚠️ Disclaimer
-
-This script does not include full security hardening and is provided for educational or internal use. If exposed publicly, make sure to:
-
-    Use HTTPS
-
-    Harden headers via your reverse proxy or WSGI server
-
-    Protect media files from unwanted access
-
-    Sanitize inputs further (especially if allowing uploads)
-
-🧠 Requirements
-
-    Python 3.7+
-
-    Flask
-
-    Flask-Limiter
-
-Install dependencies with:
-
+```
 pip install flask flask-limiter
+```
 
-🔧 Configuration
+Or via `apt` (recommended on Debian/Ubuntu):
 
-Open playcard_server.py and set your audio directory:
+```
+sudo apt install python3-flask python3-flask-limiter
+```
 
-AUDIO_PATH = "/absolute/path/to/your/audio/files"
+### 2. Set your audio path:
 
-Make sure the folder contains audio files with these extensions: .mp3, .ogg, or .mp4. Filenames must be safe (no ../ or dangerous characters).
-🖥️ Running the Server
+```
+export AUDIO_PATH="/absolute/path/to/your/audio/files"
+```
 
-python playcard_server.py
+### 3. Run the server:
 
-By default, the server runs at http://127.0.0.1:8010.
-📂 Accessing Audio
+```
+python3 playcard_server.py
+```
 
-You can:
+By default the app runs on: `http://127.0.0.1:8010`
 
-    View available tracks:
-    http://localhost:8010/musik/playcard
+---
 
-    Play a specific file:
-    http://localhost:8010/musik/playcard?title=yourfilename&ext=mp3
+## 📂 Accessing Music
 
-If a cover image yourfilename.jpeg exists in the same folder, it will be displayed.
-🌐 Open Graph Metadata
+- Browse all tracks:  
+  `http://localhost:8010/music/playcard`
 
-When shared, the player page embeds metadata like:
+- Direct play (example):  
+  `http://localhost:8010/music/playcard?title=yourfile&ext=mp3`
 
-<meta property="og:audio" content="...">
-<meta property="og:title" content="...">
-<meta property="og:image" content="...">
+- If a cover image named `yourfile.jpg` exists, it will be used for previews.
 
-Useful for social media previews!
-🛡 Security Notes
+---
 
-    Requests are limited to 100/minute by IP.
+## 🌐 OpenGraph Preview Example
 
-    Only files in the allowed folder are served.
+When shared on platforms like Discord:
 
-    All inputs are sanitized with os.path.basename.
+```html
+<meta property="og:title" content="Track Title">
+<meta property="og:audio" content="https://yourdomain.com/music/playcard?...">
+<meta property="og:image" content="https://yourdomain.com/path/to/cover.jpg">
+```
 
-    File headers are validated (MP3 ID3, OGG, MP4, etc.).
+---
 
-🧾 License
+## 🔐 Security Notes
 
-MIT © Arnold Schiller
-Feel free to fork and adapt.
+- Rate limited (100 requests/minute per IP)
+- Input sanitized via `os.path.basename`
+- Only .mp3, .ogg, .mp4 served
+- No directory traversal possible
+- Files must exist inside `AUDIO_PATH`
+
+---
+
+## 🔧 Configuration
+
+Either:
+
+- Set `AUDIO_PATH` as environment variable  
+  or
+- Modify `MEDIA_DIRS` list directly in `playcard_server.py`
+
+---
+
+## 📦 Deployment Options
+
+### Systemd Unit
+
+Example: `/etc/systemd/system/playcard.service`
+
+```
+[Unit]
+Description=Playcard Flask Service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/usr/lib/cgi-bin
+ExecStart=/usr/bin/python3 /usr/lib/cgi-bin/playcard_server.py
+Restart=always
+Environment="FLASK_ENV=production"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then:
+
+```
+sudo systemctl daemon-reload
+sudo systemctl enable playcard.service
+sudo systemctl start playcard.service
+```
+
+---
+
+## 🌐 Reverse Proxy
+
+### Apache config (excerpt)
+
+```
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+```
+
+```
+<IfModule mod_proxy.c>
+  ProxyPass "/playcard" "http://127.0.0.1:8010/playcard"
+  ProxyPassReverse "/playcard" "http://127.0.0.1:8010/playcard"
+</IfModule>
+```
+
+### Nginx config (excerpt)
+
+```
+location /music/playcard {
+    proxy_pass http://127.0.0.1:8010/music/playcard;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+---
+
+## 📜 License
+
+BSD 2-Clause License  
+See [LICENSE](LICENSE) for details.
+
+![License](https://img.shields.io/badge/license-BSD%202--Clause-blue.svg)
+
+---
