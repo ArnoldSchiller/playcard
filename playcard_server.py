@@ -205,12 +205,14 @@ def playcard():
     <meta property="og:url" content="{base_url}/{MUSIC_PATH}/playcard?title={quoted_file}" />
     <meta property="og:title" content="Jaque Arnoux Radio {html.escape(file_name_exact)}" />
     <meta property="og:image" content="https://jaquearnoux.de/radio.png" />
+    <link rel="stylesheet" href="radio.css" />
   </head>
   <body background="https://jaquearnoux.de/radio.png">
+    <p>{html.escape(file_name_exact)}</p>
     <audio controls autoplay>
       <source src="{audio_url}" type="audio/{file_extension[1:]}">
-      Your browser does not support audio playback.
-    </audio>
+      Dein Browser kann Audio nicht abspielen.
+    </audio></br>
     {img_html}
     <script src="radio.js" async></script>
     <iframe src="{audio_url}" allow="autoplay"></iframe>
