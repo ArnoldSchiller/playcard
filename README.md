@@ -27,6 +27,33 @@ Or via `apt` (recommended on Debian/Ubuntu):
 ```bash
 sudo apt install python3-flask python3-flask-limiter
 ```
+=======
+A lightweight Flask web app to browse and stream music files (`.mp3`, `.ogg`, `.mp4`) from local folders via OpenGraph-enabled web pages.
+
+## Features
+
+- Browse audio files in multiple directories
+- Auto-generated playback pages with OpenGraph metadata (great for Discord / social media sharing)
+- Rate-limited (via `Flask-Limiter`, optional memcached)
+- Unicode-safe and locale-aware sorting
+
+## Configuration
+
+Set audio source directories by editing the `MEDIA_DIRS` list or exporting an `AUDIO_PATH` environment variable.
+
+## Requirements
+
+- Python 3.7+
+- Flask
+- Optional: `pymemcache` for better rate limiting
+
+## Run
+
+```bash
+python playcard_server.py
+```
+⚠️ Disclaimer
+
 
 ### 2. Set your audio path:
 
