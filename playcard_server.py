@@ -74,8 +74,8 @@ def find_file(title_path, extensions):
                     return os.path.join(root, f), f, ext
     return None, None, None
 
-@app.route(f"/{MUSIC_PATH}/stream/<path:title>")
-def stream_audio(title):
+@app.route(f"/{MUSIC_PATH}/playcard/<path:title>")
+def playcard_audio(title):
     title_path = unicodedata.normalize("NFC", title)
     for media_root in MEDIA_DIRS:
         full_path = os.path.normpath(os.path.join(media_root, title_path))
@@ -129,25 +129,31 @@ def playcard():
     if not file_path:
         return abort(404, "Datei nicht gefunden.")
 
-    stream_rel_path = None
+    playcard_rel_path = None
     for media_root in MEDIA_DIRS:
         if file_path.startswith(media_root):
-            stream_rel_path = os.path.relpath(file_path, media_root).replace("\\", "/")
+            playcard_rel_path = os.path.relpath(file_path, media_root).replace("\\", "/")
             break
 
-    if not stream_rel_path:
+    if not playcard_rel_path:
         return abort(403, "Zugriff verweigert.")
+    
+    # Versuche die Basis-URL mit den Proxy-Headern
+    scheme = request.headers.get("X-Forwarded-Proto", request.scheme)
+    host = request.headers.get("X-Forwarded-Host", request.host)
+    base_url = f"{scheme}://{host}".rstrip("/")	
+    # base_url = f"{request.scheme}://{request.environ.get('HTTP_HOST')}"    
+    # base_url = request.host_url.rstrip("/")
 
-    base_url = request.url_root.rstrip("/")
-    quoted_file = urllib.parse.quote(stream_rel_path)
-    audio_url = f"{base_url}/{MUSIC_PATH}/stream/{quoted_file}"
+    quoted_file = urllib.parse.quote(playcard_rel_path)
+    audio_url = f"{base_url}/{MUSIC_PATH}/playcard/{quoted_file}"
 
     # Bild optional
     imgpath = os.path.splitext(file_path)[0] + ".jpeg"
     img_html = ""
     if os.path.isfile(imgpath):
         img_rel = urllib.parse.quote(os.path.relpath(imgpath, media_root).replace("\\", "/"))
-        img_html = f'<img src="/{MUSIC_PATH}/stream/{img_rel}" width="300"><br>'
+        img_html = f'<img src="/{MUSIC_PATH}/playcard/{img_rel}" width="300"><br>'
 
     html_out = f"""<!DOCTYPE html>
 <html prefix="og: http://ogp.me/ns#">
