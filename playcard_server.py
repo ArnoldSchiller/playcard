@@ -177,7 +177,8 @@ def playcard():
         return abort(403, "Access denied.")
 
     # Build base URL (supporting reverse proxy headers)
-    scheme = request.headers.get("X-Forwarded-Proto", request.scheme)
+    # scheme = request.headers.get("X-Forwarded-Proto", request.scheme) # Get Proto from proxy
+    scheme = "https" # hardcoded https
     host = request.headers.get("X-Forwarded-Host", request.host)
     base_url = f"{scheme}://{host}".rstrip("/")
 
