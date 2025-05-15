@@ -2,7 +2,7 @@
 
 **Dual-Engine Media Streaming** - Choose between a simple PHP version or a powerful Flask server for your audio/video library.
 
-![Demo](https://jaquearnoux.de/playcard.php)
+![Demo](playcard.png)
 
 
 
