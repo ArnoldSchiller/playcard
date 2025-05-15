@@ -1,59 +1,51 @@
-# 🎵 Playcard Audio Server
+# Playcard Audio Server 🎵
 
-A lightweight Flask web app to browse and stream `.mp3`, `.ogg`, `.mp4` audio files from a local folder.  
-Supports OpenGraph previews (ideal for Discord, Telegram, etc.).
+**Dual-Engine Media Streaming** - Choose between a simple PHP version or a powerful Flask server for your audio/video library.
 
-## ✨ Features
+![Demo](https://jaquearnoux.de/playcard.php)
 
-- Browse and play audio files from a specified directory
-- Auto-generated player pages with OpenGraph metadata
-- Social-media-ready previews (og:image, og:title, og:audio)
-- Built-in rate limiting (100 req/min per IP)
-- Unicode-safe, locale-aware filename sorting
-- Minimal dependencies, runs with a single script
 
-## 🚀 Quick Start
 
-### 1. Install Python dependencies
+## 📌 Core functions (both versions)
+- Stream **MP3, OGG, MP4, WebM** from local folders
+- Automatic cover art detection (`track.jpg` for `track.mp3`)
+- OpenGraph support for social media previews
+- CLI mode (direct playback via terminal)
+- Structured/flat folder view
+- Shuffle function for random playback
 
-You can install dependencies via `pip`:
+
+
+## 🚀 Quick start
+### **PHP-Version** (simple)
+```bash
+git clone https://github.com/ArnoldSchiller/playcard.git
+cd playcard
+```
+
+
+1. configure `$MEDIA_DIRS` in `playcard.php`:
+```php
+$MEDIA_DIRS = ["/path/to/music", "/other/folder"];
+````
+
+2nd call in the browser: 
+`http://deinserver/playcard.php`
+
+### **Python/Flask version** (powerful)
+
+### 1. Install requirements
 
 ```bash
 pip install flask flask-limiter
+export AUDIO_PATH="/pfad/zu/musik"
+python3 playcard_server.py
 ```
-
 Or via `apt` (recommended on Debian/Ubuntu):
 
 ```bash
 sudo apt install python3-flask python3-flask-limiter
 ```
-=======
-A lightweight Flask web app to browse and stream music files (`.mp3`, `.ogg`, `.mp4`) from local folders via OpenGraph-enabled web pages.
-
-## Features
-
-- Browse audio files in multiple directories
-- Auto-generated playback pages with OpenGraph metadata (great for Discord / social media sharing)
-- Rate-limited (via `Flask-Limiter`, optional memcached)
-- Unicode-safe and locale-aware sorting
-
-## Configuration
-
-Set audio source directories by editing the `MEDIA_DIRS` list or exporting an `AUDIO_PATH` environment variable.
-
-## Requirements
-
-- Python 3.7+
-- Flask
-- Optional: `pymemcache` for better rate limiting
-
-## Run
-
-```bash
-python playcard_server.py
-```
-⚠️ Disclaimer
-
 
 ### 2. Set your audio path:
 
@@ -69,201 +61,75 @@ python3 playcard_server.py
 
 By default the app runs on: `http://127.0.0.1:8010`
 
----
+→ Runs on `http://localhost:8010` by default
 
-## 📂 Accessing Music
+## 🔧 Comparison of versions
+| Feature | PHP version | Python/Flask version |
+|-----------------------|----------------------|----------------------|
+| **Installation** | PHP only required | Python + Pip |
+| **Performance** | Good for small libraries | Optimized for large libraries |
+| **CLI- Player** | `ffplay` integration | Customizable |
+| **Rate limiting** | No | ✅ (100 requests/min) |
+| **Proxy friendly** | Yes | Yes (with HTTPS support) |
+| **Systemd service** | Set up manually | See template here in README |
 
-- Browse all tracks:  
-  `http://localhost:8010/music/playcard`
 
-- Direct play (example):  
-  `http://localhost:8010/music/playcard?title=yourfile&ext=mp3`
 
-- If a cover image named `yourfile.jpg` exists, it will be used for previews.
-
----
-
-## 🌐 OpenGraph Preview Example
-
-When shared on platforms like Discord:
-
+## 🌐 OpenGraph-Vorschau (both)
 ```html
-<meta property="og:title" content="Track Title">
-<meta property="og:audio" content="https://yourdomain.com/music/playcard?...">
-<meta property="og:image" content="https://yourdomain.com/path/to/cover.jpg">
+<meta property="og:audio" content="https://server/stream.mp3">
+<meta property="og:image" content="https://server/cover.jpg">
 ```
+*Perfect for Facebook/Discord/Telegram!*
 
----
-
-## 🔐 Security Notes
-
-- Rate limited (100 requests/minute per IP)
-- Input sanitized via `os.path.basename`
-- Only .mp3, .ogg, .mp4 served
+## 🛡 Security
+### PHP
+- Restricted to `$ALLOWED_EXTENSIONS`
 - No directory traversal possible
-- Files must exist inside `AUDIO_PATH`
 
----
+### Python/Flask
+- Additionally:
+  - Rate limiting via `flask-limiter`
+  - Input sanitization with `os.path.basename`
+  - Recommended: Run behind HTTPS reverse proxy
 
-## 🔧 Configuration
 
-Either:
-
-- Set `AUDIO_PATH` as environment variable  
-  or
-- Modify `MEDIA_DIRS` list directly in `playcard_server.py`
-
----
-
-## 📦 Deployment Options
-
-### Systemd Unit
-
-Example: `/etc/systemd/system/playcard.service`
-
-```
+## 🐧 Systemd-Service (Flask)
+```ini
 [Unit]
 Description=Playcard Flask Service
 After=network.target
 
 [Service]
 User=www-data
-Group=www-data
-WorkingDirectory=/usr/lib/cgi-bin
-ExecStart=/usr/bin/python3 /usr/lib/cgi-bin/playcard_server.py
+ExecStart=/usr/bin/python3 /path/to/playcard_server.py
 Restart=always
-Environment="FLASK_ENV=production"
-
-[Install]
-WantedBy=multi-user.target
+Environment="AUDIO_PATH=/music/path"
 ```
 
-Then:
-
-```
-sudo systemctl daemon-reload
+```bash
 sudo systemctl enable playcard.service
-sudo systemctl start playcard.service
 ```
 
----
-
-## 🌐 Reverse Proxy
-
-### Apache config (excerpt)
-
-```
-sudo a2enmod proxy
-sudo a2enmod proxy_http
+## 🔄 Reverse-Proxy
+### Apache (example)
+```apache
+ProxyPass "/music" "http://localhost:8010/music"
+ProxyPassReverse "/music" "http://localhost:8010/music"
 ```
 
-```
-<IfModule mod_proxy.c>
-  ProxyPass "/playcard" "http://127.0.0.1:8010/playcard"
-  ProxyPassReverse "/playcard" "http://127.0.0.1:8010/playcard"
-</IfModule>
-```
-
-### Nginx config (excerpt)
-
-```
-location /music/playcard {
-    proxy_pass http://127.0.0.1:8010/music/playcard;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
+### Nginx (example)
+```nginx
+location /musik {
+    proxy_pass http://127.0.0.1:8010;
 }
 ```
 
----
-
 ## 📜 License
-
 BSD 2-Clause License  
-See [LICENSE](LICENSE) for details.
-
 ![License](https://img.shields.io/badge/license-BSD%202--Clause-blue.svg)
 
----
-
-
-
-
-## ⚠️ Disclaimer
-
-This script does not include full security hardening and is provided for educational or internal use. If exposed publicly, make sure to:
-
-    Use HTTPS
-
-    Harden headers via your reverse proxy or WSGI server
-    Protect media files from unwanted access
-
-    Sanitize inputs further (especially if allowing uploads)
-
-
-## 🔧 More Configuration
-
-Open playcard_server.py and set your audio directory:
-
-AUDIO_PATH = "/absolute/path/to/your/audio/files"
-
-Make sure the folder contains audio files with these extensions: .mp3, .ogg, or .mp4. Filenames must be safe (no ../ or dangerous characters).
-
-## 📂 Accessing Audio
-
-You can:
-
-    View available tracks:
-    http://localhost:8010/music/playcard
-
-    Play a specific file:
-    http://localhost:8010/music/playcard?title=yourfilename&ext=mp3
-
-If a cover image yourfilename.jpeg exists in the same folder, it will be displayed.
-🌐 Open Graph Metadata
-
-When shared, the player page embeds metadata like:
-
-<meta property="og:audio" content="...">
-<meta property="og:title" content="...">
-<meta property="og:image" content="...">
-
-Useful for social media previews!
-🛡 Security Notes
-
-    Requests are limited to 100/minute by IP.
-
-    Only files in the allowed folder are served.
-
-    All inputs are sanitized with os.path.basename.
-
-    File headers are validated (MP3 ID3, OGG, MP4, etc.).
-
-## Setup
-Please set the `AUDIO_PATH` variable to the location of your music files before running the server.
-
-
-```python
-AUDIO_PATH = "/path/to/your/music/folder"
-```
-
-
-## Installation
-
-
-Clone this repository.
-
-Install the necessary dependencies.
-
-pip install -r requirements.txt
-
-Run the server:
-
-    python playcard_server.py
-
-    Visit http://127.0.0.1:8010 in your browser to access the server.
-
-
-## Apache configuration
+## Apache advanced configuration
 
 Make sure that you have activated mod_proxy and mod_proxy_http. You can activate these modules, if they are not yet activated, with :
 ```bash
@@ -272,7 +138,7 @@ sudo a2enmod proxy_http
 ```
 
 
-Add the following configuration to your Apache configuration file (usually in /etc/apache2/sites-available/000-default.conf or any other file you use) you can also use conf-available for a playcard-proxy.conf
+Add the following configuration to your Apache configuration file (usually in /etc/apache2/conf-available/playcard-proxy.conf or any other file you use) you can also use conf-available for a playcard-proxy.conf
 
 ```apache
 # Example for Apache configuration
@@ -304,17 +170,13 @@ Add the following configuration to your Apache configuration file (usually in /e
     ProxyPassReverse “/playcard” “http://127.0.0.1:8010/musik/playcard”
 
 </IfModule>
-
-
-# **Your Audio Path Configuration** 
-
-# Replace the path with the path to your playcard folder, e.g. /var/www/html/playcard/
-
-# Make sure that the Python server has access to this folder
-
 ```
 
-## Nginx configuration
+```bash
+sudo a2enmod playcard_proxy
+sudo apache2 restart
+```
+## Nginx advanced configuration
 Example configuration for Nginx:
 
 If you are using Nginx, you can use the following configuration in your Nginx configuration file (/etc/nginx/sites-available/default or another file):
@@ -341,92 +203,7 @@ server {
 ```
 
 
-## Important notes:
 
-### Audio path:
-Make sure the Python server has access to the music folder you specified in the AUDIO_PATH in your Python script. The Apache or Nginx server must also have access to this folder so that the files can be delivered correctly.
-
-### Proxy configuration:
-The Apache and Nginx configurations forward requests for /music/playcard to the local Flask server running at http://127.0.0.1:8010. If you change the port or address, make sure you adjust the configuration accordingly.
-
-### Testing:
-After the configuration, you can restart your Apache or Nginx server:
-
-    sudo systemctl restart apache2
-    sudo systemctl restart nginx
-
-### Troubleshooting:
-If you have problems loading the music files, check that the music files are in the correct folder and that the web server (Apache/Nginx) has the correct permissions to access this folder.
-
-## Systemd configuration for the automatic start of the Playcard server
-
-To ensure that the Flask server starts automatically when booting and runs in the background, you can create a Systemd service. Here is an example of a playcard.service file.
-### Step 1: Create the systemd service file
-
-Create a new service file for the Flask server:
-```bash
-sudo vi /etc/systemd/system/playcard.service
-```
-Add the following configuration to the file:
-```ini
-[Unit]
-Description=Playcard Flask Service
-After=network.target
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/usr/lib/cgi-bin
-ExecStart=/usr/bin/python3 /usr/lib/cgi-bin/playcard_server.py
-Restart=always
-RestartSec=3
-Environment="FLASK_ENV=production"
-
-[Install]
-WantedBy=multi-user.target
-```
-If /usr/lib/cgi-bin/playcard_server.py is not located there, adjust the path accordingly.
-
-### Step 2: Reload the systemd services and start the service
-
-
-
-After you have created the service file, you can reload the service and start the Flask server:
-```bash
-# Reload systemd services
-sudo systemctl daemon-reload
-
-# Start Flask server
-sudo systemctl start playcard.service
-
-# Configure Flask server to start on boot
-sudo systemctl enable playcard.service
-```
-### Step 3: Checking the service status
-
-You can check the status of the Flask server to ensure that the service is running correctly:
-```bash
-sudo systemctl status playcard.service
-```
-If the server is running successfully, you should see something like this
-
-● playcard.service - Playcard Flask Service
- Loaded: loaded (/etc/systemd/system/playcard.service; enabled; vendor preset: enabled)
- Active: active (running) since <timestamp>; <time> ago
- Main PID: <PID> (python3)
- CGroup: /system.slice/playcard.service
- └─<PID> /usr/bin/python3 /usr/lib/cgi-bin/playcard_server.py
-
-### Step 4: Troubleshooting
-
-If the service does not start, you can view the logs with journalctl to detect possible errors:
-
-```bash
-sudo journalctl -u playcard.service
-```
-With these instructions, you can start the Playcard server automatically and ensure that it is running when the system boots.
-
-If you still want to make adjustments to the configuration, such as the user or the path to your script, you can do this in the playcard.service file.
 
 ## Remarks
 
@@ -453,3 +230,7 @@ Checks whether the requested file actually exists in the specified directory and
 If you are using the script in a production environment, remember to take the appropriate security measures, e.g. enforce HTTPS, and make sure that sensitive data is not exposed in logs or error messages.
 
 Secure it against cross-site scripting in Apache with mod_security.
+
+
+---
+
