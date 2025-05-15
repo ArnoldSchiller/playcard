@@ -1,159 +1,114 @@
-# 🎵 Playcard Audio Server
+# Playcard Audio Server 🎵
 
-A lightweight Flask web app to browse and stream `.mp3`, `.ogg`, `.mp4` audio files from a local folder.  
-Supports OpenGraph previews (ideal for Discord, Telegram, etc.).
+**Dual-Engine Media Streaming** – Wähle zwischen einer einfachen PHP-Version oder einem leistungsfähigen Flask-Server für deine Audio/Video-Bibliothek.
 
-## ✨ Features
+![Demo](https://jaquearnoux.de/radio.png)
 
-- Browse and play audio files from a specified directory
-- Auto-generated player pages with OpenGraph metadata
-- Social-media-ready previews (og:image, og:title, og:audio)
-- Built-in rate limiting (100 req/min per IP)
-- Unicode-safe, locale-aware filename sorting
-- Minimal dependencies, runs with a single script
+%%%bash
+# Nach dem Kopieren ersetzen mit:
+sed -i 's/%%%/```/g' README.md
+%%%
 
-## 🚀 Quick Start
+## 📌 Kernfunktionen (beide Versionen)
+- Stream **MP3, OGG, MP4, WebM** aus lokalen Ordnern
+- Automatische Cover-Art-Erkennung (`track.jpg` für `track.mp3`)
+- OpenGraph-Unterstützung für Social-Media-Vorschauen
+- CLI-Modus (direkte Wiedergabe via Terminal)
+- Strukturierte/Flache Ordneransicht
+- Shuffle-Funktion für Zufallswiedergabe
 
-### 1. Install Python dependencies
+## 🚀 Schnellstart
+### **PHP-Version** (einfach)
+%%%bash
+git clone https://github.com/yourrepo/playcard-audio-server.git
+cd playcard-audio-server
+%%%
 
-You can install dependencies via `pip`:
+1. Konfiguriere `$MEDIA_DIRS` in `playcard.php`:
+%%%php
+$MEDIA_DIRS = ["/pfad/zu/musik", "/anderer/ordner"];
+%%%
 
-```
+2. Aufruf im Browser:  
+`http://deinserver/playcard.php`
+
+### **Python/Flask-Version** (leistungsfähig)
+%%%bash
 pip install flask flask-limiter
-```
-
-Or via `apt` (recommended on Debian/Ubuntu):
-
-```
-sudo apt install python3-flask python3-flask-limiter
-```
-
-### 2. Set your audio path:
-
-```
-export AUDIO_PATH="/absolute/path/to/your/audio/files"
-```
-
-### 3. Run the server:
-
-```
+export AUDIO_PATH="/pfad/zu/musik"
 python3 playcard_server.py
-```
+%%%
 
-By default the app runs on: `http://127.0.0.1:8010`
+→ Läuft standardmäßig auf `http://localhost:8010`
 
----
+## 🔧 Vergleich der Versionen
+| Feature               | PHP-Version          | Python/Flask-Version |
+|-----------------------|----------------------|----------------------|
+| **Installation**      | Nur PHP erforderlich | Python + Pip         |
+| **Performance**       | Gut für kleine Bibliotheken | Optimiert für große Bibliotheken |
+| **CLI-Player**        | `ffplay`-Integration | Benutzerdefinierbar |
+| **Rate-Limiting**     | Nein                 | ✅ (100 Anfragen/Min) |
+| **Proxy-Freundlich**  | Ja                   | Ja (mit HTTPS-Support) |
+| **Systemd-Service**   | Manuell einrichten   | Integrierte Vorlage |
 
-## 📂 Accessing Music
+## 🌐 OpenGraph-Vorschau (beide)
+%%%html
+<meta property="og:audio" content="https://server/stream.mp3">
+<meta property="og:image" content="https://server/cover.jpg">
+%%%
+*Perfekt für Discord/Telegram!*
 
-- Browse all tracks:  
-  `http://localhost:8010/music/playcard`
+## 🛡 Sicherheit
+### PHP
+- Beschränkt auf `$ALLOWED_EXTENSIONS`
+- Kein Directory-Traversal möglich
 
-- Direct play (example):  
-  `http://localhost:8010/music/playcard?title=yourfile&ext=mp3`
+### Python/Flask
+- Zusätzlich:
+  - Rate-Limiting via `flask-limiter`
+  - Eingabe-Sanitisierung mit `os.path.basename`
+  - Empfohlen: Hinter HTTPS-Reverse-Proxy betreiben
 
-- If a cover image named `yourfile.jpg` exists, it will be used for previews.
-
----
-
-## 🌐 OpenGraph Preview Example
-
-When shared on platforms like Discord:
-
-```html
-<meta property="og:title" content="Track Title">
-<meta property="og:audio" content="https://yourdomain.com/music/playcard?...">
-<meta property="og:image" content="https://yourdomain.com/path/to/cover.jpg">
-```
-
----
-
-## 🔐 Security Notes
-
-- Rate limited (100 requests/minute per IP)
-- Input sanitized via `os.path.basename`
-- Only .mp3, .ogg, .mp4 served
-- No directory traversal possible
-- Files must exist inside `AUDIO_PATH`
-
----
-
-## 🔧 Configuration
-
-Either:
-
-- Set `AUDIO_PATH` as environment variable  
-  or
-- Modify `MEDIA_DIRS` list directly in `playcard_server.py`
-
----
-
-## 📦 Deployment Options
-
-### Systemd Unit
-
-Example: `/etc/systemd/system/playcard.service`
-
-```
+## 🐧 Systemd-Service (Flask)
+%%%ini
 [Unit]
 Description=Playcard Flask Service
 After=network.target
 
 [Service]
 User=www-data
-Group=www-data
-WorkingDirectory=/usr/lib/cgi-bin
-ExecStart=/usr/bin/python3 /usr/lib/cgi-bin/playcard_server.py
+ExecStart=/usr/bin/python3 /pfad/zu/playcard_server.py
 Restart=always
-Environment="FLASK_ENV=production"
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Then:
-
-```
-sudo systemctl daemon-reload
+Environment="AUDIO_PATH=/musik/pfad"
+%%%
+%%%bash
 sudo systemctl enable playcard.service
-sudo systemctl start playcard.service
-```
+%%%
 
----
+## 🔄 Reverse-Proxy
+### Apache (Auszug)
+%%%apache
+ProxyPass "/musik" "http://localhost:8010/musik"
+ProxyPassReverse "/musik" "http://localhost:8010/musik"
+%%%
 
-## 🌐 Reverse Proxy
-
-### Apache config (excerpt)
-
-```
-sudo a2enmod proxy
-sudo a2enmod proxy_http
-```
-
-```
-<IfModule mod_proxy.c>
-  ProxyPass "/playcard" "http://127.0.0.1:8010/playcard"
-  ProxyPassReverse "/playcard" "http://127.0.0.1:8010/playcard"
-</IfModule>
-```
-
-### Nginx config (excerpt)
-
-```
-location /music/playcard {
-    proxy_pass http://127.0.0.1:8010/music/playcard;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
+### Nginx (Auszug)
+%%%nginx
+location /musik {
+    proxy_pass http://127.0.0.1:8010;
 }
-```
-
----
+%%%
 
 ## 📜 License
-
 BSD 2-Clause License  
-See [LICENSE](LICENSE) for details.
-
 ![License](https://img.shields.io/badge/license-BSD%202--Clause-blue.svg)
 
+
 ---
+
+### Nach dem Kopieren:
+1. Datei als `README.md` speichern
+2. Backticks zurückersetzen mit:
+%%%bash
+sed -i 's/%%%/```/g' README.md
+%%%
