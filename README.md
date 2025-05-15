@@ -71,7 +71,7 @@ By default the app runs on: `http://127.0.0.1:8010`
 | **CLI- Player** | `ffplay` integration | Customizable |
 | **Rate limiting** | No | ✅ (100 requests/min) |
 | **Proxy friendly** | Yes | Yes (with HTTPS support) |
-| **Systemd service** | Set up manually | Built-in template |
+| **Systemd service** | Set up manually | See template here in README |
 
 
 
