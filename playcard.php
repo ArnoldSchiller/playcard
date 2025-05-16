@@ -17,6 +17,8 @@ $FORBIDDEN_DIRS = [
 ];
 
 // Directories to scan for media files
+// Change MEDIA_DIRS to your needs
+// example SERVERROOT . "" find all media under /var/www/html
 $MEDIA_DIRS = array_filter([
     SERVERROOT . "",
     "/home/radio/radio/ogg",
@@ -75,7 +77,7 @@ function filter_media_dirs($media_dirs, $forbidden_dirs) {
 $MEDIA_DIRS = filter_media_dirs($MEDIA_DIRS, $FORBIDDEN_DIRS);
 
 // -------------------------------
-// CLI Mode
+// CLI Mode for syntax check or play
 // -------------------------------
 if (php_sapi_name() === 'cli') {
     $cli_args = $_SERVER['argv'];
@@ -92,15 +94,26 @@ if (php_sapi_name() === 'cli') {
         exit(1);
     }
 
+    // optional: direct to a local player (for example mpg123, ffplay etc.)
+    // change this for your player:
     echo "Playing: {$file_info['path']}\n";
     passthru("ffplay -autoexit -nodisp " . escapeshellarg($file_info['path']));
-    exit(0);
+    exit(0); // CLI-case end
 }
 
 
 
 // -------------------------------
 // Utility Functions
+// ------------------------------- 
+// find_file - Finds playable files see Allowed Extensions in the media directory
+// find_cover_image - Finds Cover Image
+// send_file
+// generate_open_graph_tags - OG tags for meta property in the header
+// generate_index - Index with no parameter structured false
+// generate_index_with_structure - Index with no parameter structured true
+// sort_key_locale - Used by generate_index_with_structure
+// compare_titles - Used by generate_index needs sort_key_locale
 // -------------------------------
 function find_file($title_path, $extensions) {
     global $MEDIA_DIRS;
@@ -248,8 +261,6 @@ OG;
 
 
 
-// [Rest of the file remains unchanged]
-
 
 function generate_index() {
     global $MEDIA_DIRS, $ALLOWED_EXTENSIONS;
@@ -357,6 +368,10 @@ function generate_index_with_structure() {
 // -------------------------------
 // Main Request Handler
 // -------------------------------
+// If we have a stream, then we stream.
+// If we don't have a title, we show the index page
+// If we have a title, we show the player card of the title
+
 if (isset($_GET['stream'])) {
     $stream_path = urldecode($_GET['stream']);
     $stream_path = str_replace('\\', '/', $stream_path);
