@@ -2,18 +2,23 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-
-
-
-
 // -------------------------------
 // Configuration
 // -------------------------------
 define('SERVERROOT', "/var/www/html");
-// Change MEDIA_DIRS to your needs
-// example SERVERROOT . "" find all media under /var/www/html
+
+// Forbidden folder names or visible fragments (relative or substring match)
+$FORBIDDEN_DIRS = [
+    "music/Artist/Albumname",
+    "Artist - ...album name ...",
+    "wordpress",
+    "phpgedview",
+    // Add more entries as needed
+];
+
+// Directories to scan for media files
 $MEDIA_DIRS = array_filter([
-    SERVERROOT . "/musik",
+    SERVERROOT . "",
     "/home/radio/radio/ogg",
     getenv("AUDIO_PATH")
 ], fn($d) => $d && is_dir($d));
@@ -22,15 +27,57 @@ if (empty($MEDIA_DIRS)) {
     die("No valid media directories found.");
 }
 
-// allowed media extensions 
+// Allowed media file extensions
 $ALLOWED_EXTENSIONS = ['.mp3', '.mp4', '.ogg', '.ogv', '.webm'];
 
-//-------------------------------
-// Cli for check or play
-// ------------------------------
+// Get relative path from absolute, based on MEDIA_DIRS
+function get_relative_path($absolute_path) {
+    global $MEDIA_DIRS;
 
+    foreach ($MEDIA_DIRS as $base) {
+        if (str_starts_with($absolute_path, $base)) {
+            $rel = ltrim(substr($absolute_path, strlen($base)), DIRECTORY_SEPARATOR);
+            return $rel;
+        }
+    }
+
+    return $absolute_path; // fallback if not under any MEDIA_DIR
+}
+
+// Check if path is forbidden based on user-visible fragments
+function is_forbidden($absolute_path) {
+    global $FORBIDDEN_DIRS;
+
+    $rel_path = get_relative_path($absolute_path);
+
+    foreach ($FORBIDDEN_DIRS as $forbidden) {
+        if (stripos($rel_path, $forbidden) !== false) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Filter MEDIA_DIRS to exclude forbidden entries
+function filter_media_dirs($media_dirs, $forbidden_dirs) {
+    $filtered = [];
+
+    foreach ($media_dirs as $dir) {
+        if (!is_forbidden($dir) && is_readable($dir)) {
+            $filtered[] = $dir;
+        }
+    }
+
+    return $filtered;
+}
+
+$MEDIA_DIRS = filter_media_dirs($MEDIA_DIRS, $FORBIDDEN_DIRS);
+
+// -------------------------------
+// CLI Mode
+// -------------------------------
 if (php_sapi_name() === 'cli') {
-    // title as argument
     $cli_args = $_SERVER['argv'];
     if (!isset($cli_args[1])) {
         fwrite(STDERR, "Usage: php playcard.php <title>\n");
@@ -46,13 +93,9 @@ if (php_sapi_name() === 'cli') {
     }
 
     echo "Playing: {$file_info['path']}\n";
-    // optional: direct to a local player (for example mpg123, ffplay etc.)
-    // change this for your player:
     passthru("ffplay -autoexit -nodisp " . escapeshellarg($file_info['path']));
-
-    exit(0); // CLI-case end
+    exit(0);
 }
-
 
 
 
@@ -220,7 +263,9 @@ function generate_index() {
 
         foreach ($iterator as $file) {
             if ($file->isFile()) {
-                $ext = strtolower('.' . $file->getExtension());
+		if (is_forbidden($file->getPathname())) continue;
+
+		$ext = strtolower('.' . $file->getExtension());
                 if (in_array($ext, $ALLOWED_EXTENSIONS)) {
                     $media_root_real = realpath($media_root);
                     $file_path_real = realpath($file->getPathname());
@@ -268,7 +313,9 @@ function generate_index_with_structure() {
 
         foreach ($iterator as $file) {
             if ($file->isFile()) {
-                $ext = strtolower('.' . $file->getExtension());
+		if (is_forbidden($file->getPathname())) continue;
+
+		$ext = strtolower('.' . $file->getExtension());
                 if (in_array($ext, $ALLOWED_EXTENSIONS)) {
                     $media_root_real = realpath($media_root);
                     $file_path_real = realpath($file->getPathname());
