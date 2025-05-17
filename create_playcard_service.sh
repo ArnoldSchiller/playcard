@@ -191,4 +191,31 @@ echo "sudo systemctl enable ${SERVICE_NAME}"
 echo "sudo systemctl start ${SERVICE_NAME}"
 
 echo -e "\n\033[32mDry run complete. No sudo required.\033[0m"
+
+# Service activation
+read -p $'\nEnable and start service now? [Y/n] ' -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    echo "sudo mv $UNIT_FILE_TMP /etc/systemd/system/${SERVICE_NAME}"
+[[ "$SERVER_TYPE" == uwsgi* ]] && echo "sudo mv $UWSGI_INI_TMP /etc/uwsgi/apps-available/playcard.ini"
+[[ "$SERVER_TYPE" == uwsgi* ]] && echo "sudo ln -s /etc/uwsgi/apps-available/playcard.ini /etc/uwsgi/apps-enabled/"	
+    echo sudo systemctl daemon-reload
+    echo sudo systemctl enable "${SERVICE_NAME}"
+    echo sudo systemctl start "${SERVICE_NAME}"
+    sudo mv $UNIT_FILE_TMP /etc/systemd/system/${SERVICE_NAME}
+[[ "$SERVER_TYPE" == uwsgi* ]] && sudo mv $UWSGI_INI_TMP /etc/uwsgi/apps-available/playcard.ini
+[[ "$SERVER_TYPE" == uwsgi* ]] && sudo ln -s /etc/uwsgi/apps-available/playcard.ini /etc/uwsgi/apps-enabled/	
+    sudo systemctl daemon-reload
+    sudo systemctl enable "${SERVICE_NAME}"
+    sudo systemctl start "${SERVICE_NAME}"
+    echo -e "\n\033[32mService activated!\033[0m"
+    echo "Check status with: systemctl status ${SERVICE_NAME}"
+	
+else
+    echo -e "\nYou can manage the service later with:"
+    echo "  sudo systemctl start|stop|restart ${SERVICE_NAME}"
+fi
+
+
+
 exit 0
