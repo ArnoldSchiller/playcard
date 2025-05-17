@@ -1,14 +1,15 @@
 #!/bin/bash
 
-# Systemd Unit File Generator for Playcard Service
-# Supports uwsgi, uwsgi-http, gunicorn, waitress, flask
-# DAU-kompatibel & interaktiv
+# Systemd Unit File Generator for Playcard Service (Dry-Run First)
+# Version 3.0 - Fully DAU-safe, sudo-free dry run with full output preview
 
+# Default values
 CLONE_DIR="${1:-$(pwd)}"
 SCRIPT_NAME="playcard_server.py"
 SCRIPT_PATH="${CLONE_DIR}/${SCRIPT_NAME}"
 PORT=8010
 
+# Check clone directory
 if [ ! -d "$CLONE_DIR" ]; then
     echo "Error: Directory '$CLONE_DIR' does not exist" >&2
     exit 1
@@ -19,84 +20,85 @@ if [ ! -f "$SCRIPT_PATH" ]; then
     exit 1
 fi
 
+# Determine service ownership
 SERVICE_USER=$(stat -c '%U' "$CLONE_DIR")
 SERVICE_GROUP=$(stat -c '%G' "$CLONE_DIR")
 
-# Detect servers
-AVAILABLE_SERVERS=()
-if command -v uwsgi >/dev/null; then
-    AVAILABLE_SERVERS+=("uwsgi" "uwsgi-http")
-fi
-if command -v gunicorn >/dev/null; then
-    AVAILABLE_SERVERS+=("gunicorn")
-fi
-if command -v waitress-serve >/dev/null; then
-    AVAILABLE_SERVERS+=("waitress")
-fi
+# Detect server options
+AVAILABLE_SERVERS=( )
+command -v uwsgi >/dev/null && AVAILABLE_SERVERS+=("uwsgi" "uwsgi-http")
+command -v gunicorn >/dev/null && AVAILABLE_SERVERS+=("gunicorn")
+command -v waitress-serve >/dev/null && AVAILABLE_SERVERS+=("waitress")
 AVAILABLE_SERVERS+=("flask")
 
+# Let user select server type
 echo -e "\nAvailable server types:"
 select SERVER_TYPE in "${AVAILABLE_SERVERS[@]}"; do
     [[ -n "$SERVER_TYPE" ]] && break
-    echo "Invalid selection. Try again."
+    echo "Invalid choice, please select a valid number."
 done
 
-# Stop existing matching services (by name)
-EXISTING=$(systemctl list-units --type=service --all | grep -o 'playcard[^ ]*.service' || true)
-if [ -n "$EXISTING" ]; then
-    echo -e "\n\033[33mStopping existing Playcard services...\033[0m"
-    for svc in $EXISTING; do
-        sudo systemctl stop "$svc"
-    done
-fi
-
-# Free port if needed
-if command -v lsof >/dev/null && lsof -i :$PORT >/dev/null; then
-    echo -e "\n\033[33mPort $PORT is in use. Trying to free it...\033[0m"
-    sudo kill -9 $(lsof -t -i :$PORT) 2>/dev/null || true
-fi
-
+# Create file paths
 SERVICE_NAME="playcard-${SERVER_TYPE}.service"
-UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}"
-TMP_UNIT=$(mktemp "/tmp/${SERVICE_NAME}.XXXXXX")
+UNIT_FILE_TMP="/tmp/${SERVICE_NAME}"
+UWSGI_INI_TMP="/tmp/playcard.ini"
 
-# uWSGI INI (only for uwsgi / uwsgi-http)
-if [[ "$SERVER_TYPE" =~ ^uwsgi ]]; then
-    TMP_INI=$(mktemp /tmp/playcard.uwsgi.XXXX.ini)
-    UWSGI_APP_FILE="/etc/uwsgi/apps-available/playcard.ini"
-
-    cat > "$TMP_INI" <<EOF
+# Generate service content
+case "$SERVER_TYPE" in
+    uwsgi)
+        cat > "$UWSGI_INI_TMP" <<EOF
 [uwsgi]
 module = playcard_server:app
 master = true
 processes = 4
-plugins = python3
+socket = 127.0.0.1:${PORT}
+chmod-socket = 660
 vacuum = true
 die-on-term = true
+plugins = python3
 env = FLASK_ENV=production
 EOF
 
-    if [[ "$SERVER_TYPE" == "uwsgi" ]]; then
-        echo "socket = 127.0.0.1:${PORT}" >> "$TMP_INI"
-        echo "chmod-socket = 660" >> "$TMP_INI"
-    else
-        echo "http = 127.0.0.1:${PORT}" >> "$TMP_INI"
-    fi
-fi
-
-# Generate unit
-case $SERVER_TYPE in
-    uwsgi|uwsgi-http)
-        cat > "$TMP_UNIT" <<EOF
+        cat > "$UNIT_FILE_TMP" <<EOF
 [Unit]
-Description=Playcard uWSGI Service (${SERVER_TYPE})
+Description=Playcard uWSGI Service
 After=network.target
 
 [Service]
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 WorkingDirectory=${CLONE_DIR}
-ExecStart=/usr/bin/uwsgi --ini ${UWSGI_APP_FILE}
+ExecStart=/usr/bin/uwsgi --ini /etc/uwsgi/apps-available/playcard.ini
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        ;;
+    uwsgi-http)
+        cat > "$UWSGI_INI_TMP" <<EOF
+[uwsgi]
+module = playcard_server:app
+http = 127.0.0.1:${PORT}
+master = true
+processes = 4
+vacuum = true
+die-on-term = true
+plugins = python3
+env = FLASK_ENV=production
+EOF
+
+        cat > "$UNIT_FILE_TMP" <<EOF
+[Unit]
+Description=Playcard uWSGI Service (uwsgi-http)
+After=network.target
+
+[Service]
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
+WorkingDirectory=${CLONE_DIR}
+ExecStart=/usr/bin/uwsgi --ini /etc/uwsgi/apps-available/playcard.ini
 Restart=always
 RestartSec=3
 
@@ -105,7 +107,7 @@ WantedBy=multi-user.target
 EOF
         ;;
     gunicorn)
-        cat > "$TMP_UNIT" <<EOF
+        cat > "$UNIT_FILE_TMP" <<EOF
 [Unit]
 Description=Playcard Gunicorn Service
 After=network.target
@@ -124,7 +126,7 @@ WantedBy=multi-user.target
 EOF
         ;;
     waitress)
-        cat > "$TMP_UNIT" <<EOF
+        cat > "$UNIT_FILE_TMP" <<EOF
 [Unit]
 Description=Playcard Waitress Service
 After=network.target
@@ -142,17 +144,17 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
         ;;
-    flask)
-        cat > "$TMP_UNIT" <<EOF
+    flask|*)
+        cat > "$UNIT_FILE_TMP" <<EOF
 [Unit]
-Description=Playcard Flask Dev Service
+Description=Playcard Flask Development Service
 After=network.target
 
 [Service]
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 WorkingDirectory=${CLONE_DIR}
-Environment=FLASK_ENV=production
+Environment=FLASK_ENV=development
 ExecStart=/usr/bin/python3 ${SCRIPT_PATH}
 Restart=always
 RestartSec=3
@@ -163,48 +165,30 @@ EOF
         ;;
 esac
 
-# Show generated config
-echo -e "\n\033[1mGenerated unit file:\033[0m"
-cat "$TMP_UNIT"
-[[ "$SERVER_TYPE" =~ ^uwsgi ]] && {
-    echo -e "\n\033[1mGenerated uWSGI ini:\033[0m"
-    cat "$TMP_INI"
-}
+# Display results
+echo -e "\n\033[1mGenerated systemd service file:\033[0m"
+echo "------------------------"
+cat "$UNIT_FILE_TMP"
+echo "------------------------"
 
-# Confirm install
-read -p $'\nInstall systemd service now? [y/N] ' -n 1 -r
-echo
-if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
-    echo "Saved unit: $TMP_UNIT"
-    [[ "$SERVER_TYPE" =~ ^uwsgi ]] && echo "uWSGI ini: $TMP_INI"
-    echo "Install manually:"
-    echo "  sudo mv \"$TMP_UNIT\" \"$UNIT_FILE\""
-    [[ "$SERVER_TYPE" =~ ^uwsgi ]] && echo "  sudo mv \"$TMP_INI\" \"$UWSGI_APP_FILE\""
-    echo "  sudo systemctl daemon-reload"
-    echo "  sudo systemctl enable \"$SERVICE_NAME\""
-    exit 0
+if [[ "$SERVER_TYPE" == uwsgi* ]]; then
+    echo -e "\n\033[1mGenerated uWSGI ini file:\033[0m"
+    echo "------------------------"
+    cat "$UWSGI_INI_TMP"
+    echo "------------------------"
 fi
 
-# Perform installation
-echo -e "\nInstalling service..."
-sudo mv "$TMP_UNIT" "$UNIT_FILE"
-[[ "$SERVER_TYPE" =~ ^uwsgi ]] && {
-    sudo mkdir -p /etc/uwsgi/apps-available /etc/uwsgi/apps-enabled
-    sudo mv "$TMP_INI" "$UWSGI_APP_FILE"
-    sudo ln -sf "$UWSGI_APP_FILE" /etc/uwsgi/apps-enabled/
-}
-sudo chmod 644 "$UNIT_FILE"
+# Output installation instructions
+echo -e "\n\033[1mInstallation instructions:\033[0m"
+echo "This was a dry-run. No system changes were made."
+echo "To install this service as root, run the following commands:"
+echo ""
+echo "sudo mv $UNIT_FILE_TMP /etc/systemd/system/${SERVICE_NAME}"
+[[ "$SERVER_TYPE" == uwsgi* ]] && echo "sudo mv $UWSGI_INI_TMP /etc/uwsgi/apps-available/playcard.ini"
+[[ "$SERVER_TYPE" == uwsgi* ]] && echo "sudo ln -s /etc/uwsgi/apps-available/playcard.ini /etc/uwsgi/apps-enabled/"
+echo "sudo systemctl daemon-reload"
+echo "sudo systemctl enable ${SERVICE_NAME}"
+echo "sudo systemctl start ${SERVICE_NAME}"
 
-# Activate
-read -p $'\nEnable and start service? [Y/n] ' -n 1 -r
-echo
-if [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
-    sudo systemctl daemon-reload
-    sudo systemctl enable "$SERVICE_NAME"
-    sudo systemctl start "$SERVICE_NAME"
-    echo -e "\n\033[32mService started!\033[0m"
-    sudo systemctl status "$SERVICE_NAME"
-else
-    echo "You can start it later with:"
-    echo "  sudo systemctl start $SERVICE_NAME"
-fi
+echo -e "\n\033[32mDry run complete. No sudo required.\033[0m"
+exit 0
