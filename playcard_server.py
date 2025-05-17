@@ -115,7 +115,9 @@ def find_file(title_path, extensions):
     # 1. Versuch: Direkter Pfad
     for media_root in MEDIA_DIRS:
         full_path = os.path.normpath(os.path.join(media_root, title_path))
-        if os.path.isfile(full_path) and full_path.startswith(media_root):
+        if not full_path.startswith(os.path.normpath(media_root)):
+            continue
+        if os.path.isfile(full_path):
             if is_forbidden(full_path):
                 continue
             ext = os.path.splitext(full_path)[1].lower()
