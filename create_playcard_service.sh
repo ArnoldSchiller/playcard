@@ -27,7 +27,7 @@ SERVICE_GROUP=$(stat -c '%G' "$CLONE_DIR")
 # Detect server options
 AVAILABLE_SERVERS=( )
 command -v uwsgi >/dev/null && AVAILABLE_SERVERS+=("uwsgi")
-command -v uwsgi_python3 >/dev/null && AVAILABLE_SERVERS+=("uswgi-http")
+command -v uwsgi_python3 >/dev/null && AVAILABLE_SERVERS+=("uwsgi-http")
 command -v gunicorn >/dev/null && AVAILABLE_SERVERS+=("gunicorn")
 command -v waitress-serve >/dev/null && AVAILABLE_SERVERS+=("waitress")
 AVAILABLE_SERVERS+=("flask")
@@ -200,7 +200,7 @@ echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     echo "sudo mv $UNIT_FILE_TMP /etc/systemd/system/${SERVICE_NAME}"
 [[ "$SERVER_TYPE" == uwsgi* ]] && echo "sudo mv $UWSGI_INI_TMP /etc/uwsgi/apps-available/playcard.ini"
-[[ "$SERVER_TYPE" == uwsgi* ]] && echo "sudo ln -s /etc/uwsgi/apps-available/playcard.ini /etc/uwsgi/apps-enabled/"	
+[[ "$SERVER_TYPE" == uwsgi* ]] && echo "sudo ln -s /etc/uwsgi/apps-available/playcard.ini /etc/uwsgi/apps-enabled/"
     echo sudo systemctl daemon-reload
     echo sudo systemctl enable "${SERVICE_NAME}"
     echo sudo systemctl start "${SERVICE_NAME}"
@@ -217,6 +217,45 @@ else
     echo -e "\nYou can manage the service later with:"
     echo "  sudo systemctl start|stop|restart ${SERVICE_NAME}"
 fi
+# Configuration instructions
+echo -e "\n\033[1mCONFIGURATION NOTES:\033[0m"
+
+# Apache configuration for local development
+
+echo "# For LOCAL DEVELOPMENT or uwsgi-http with Apache on port 80:"
+
+echo "# 1. Edit your Apache config (e.g. /etc/apache2/conf-available/playcard.conf):"
+echo "#-----------------------------------------------------------"
+echo 
+echo    ProxyPass "/musik/playcard" "http://127.0.0.1:8010"
+echo    ProxyPassReverse "/musik/playcard" "http://127.0.0.1:8010"
+echo "#-----------------------------------------------------------"
+
+echo "# 2. Enable mod_proxy:"
+echo sudo a2enmod proxy proxy_http
+echo sudo systemctl restart apache2
+
+echo "# Production uWSGI configuration"
+
+
+echo "# For PRODUCTION with ${SERVER_TYPE^}:"
+
+echo "# 1. Required Apache modules:"
+echo "sudo a2enmod proxy proxy_uwsgi"
+echo "sudo systemctl restart apache2"
+
+echo "# 2. Update Apache config:"
+echo "#-----------------------------------------------------------"
+echo    ProxyPass "/musik/playcard" "uwsgi://127.0.0.1:8010"
+echo    ProxyPassReverse "/musik/playcard" "uwsgi://127.0.0.1:8010"
+echo    RequestHeader set X-Forwarded-Proto "https"
+echo "#-----------------------------------------------------------"
+
+echo "# 3. Reload Apache:"
+echo "sudo systemctl reload apache2"
+
+echo -e "\n\033[32m End CONFIGURATION NOTES!\033[0m"
+echo "Check status with: systemctl status ${SERVICE_NAME}"
 
 
 
