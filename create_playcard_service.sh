@@ -1,78 +1,51 @@
 #!/bin/bash
 
-# Universal Systemd Unit File Generator for Playcard Flask Service
-# Supports: uWSGI (http), Gunicorn, Waitress, or fallback Flask
-# Usage: ./create_playcard_service.sh [optional-path-to-app]
+# Smart Systemd Service Installer for Playcard
+# Supports flask, gunicorn, waitress, uwsgi – fallback-safe
+# DAU-freundlich + root-ready
 
 CLONE_DIR="${1:-$(pwd)}"
 SCRIPT_NAME="playcard_server.py"
 SCRIPT_PATH="${CLONE_DIR}/${SCRIPT_NAME}"
-UWSGI_APP_FILE="/etc/uwsgi/apps-available/playcard.ini"
-PORT=8010
 
-# Path checks
+# Pfadprüfung
 if [ ! -d "$CLONE_DIR" ]; then
-    echo "❌ Directory '$CLONE_DIR' does not exist" >&2
-    exit 1
-fi
-if [ ! -f "$SCRIPT_PATH" ]; then
-    echo "❌ Script '$SCRIPT_NAME' not found in '$CLONE_DIR'" >&2
+    echo "Error: Directory '$CLONE_DIR' does not exist." >&2
     exit 1
 fi
 
-# Owner info
+if [ ! -f "$SCRIPT_PATH" ]; then
+    echo "Error: Script '$SCRIPT_NAME' not found in '$CLONE_DIR'." >&2
+    exit 1
+fi
+
+# User/Group
 SERVICE_USER=$(stat -c '%U' "$CLONE_DIR")
 SERVICE_GROUP=$(stat -c '%G' "$CLONE_DIR")
 
-# Detect WSGI options
-AVAILABLE_SERVERS=()
-command -v uwsgi >/dev/null && AVAILABLE_SERVERS+=("uwsgi")
-command -v gunicorn >/dev/null && AVAILABLE_SERVERS+=("gunicorn")
-command -v waitress-serve >/dev/null && AVAILABLE_SERVERS+=("waitress")
-AVAILABLE_SERVERS+=("flask")
+# Server-Erkennung
+EXEC_CMD=""
+SERVER_TYPE=""
+cd "$CLONE_DIR" || exit 1
 
-# Choose best available
-SERVER_TYPE="${AVAILABLE_SERVERS[0]}"
-echo -e "\n✅ Detected server: \033[1m$SERVER_TYPE\033[0m (based on availability: ${AVAILABLE_SERVERS[*]})"
-
-# Service config
-SERVICE_NAME="playcard-${SERVER_TYPE}.service"
-UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}"
-TMP_UNIT=$(mktemp /tmp/${SERVICE_NAME}.XXXXXX)
-
-# Optional uWSGI config
-if [[ "$SERVER_TYPE" == "uwsgi" ]]; then
-    sudo mkdir -p /etc/uwsgi/apps-{available,enabled}
-    TMP_INI=$(mktemp /tmp/playcard.ini.XXXXXX)
-    cat > "$TMP_INI" <<EOF
-[uwsgi]
-module = playcard_server:app
-http = 127.0.0.1:${PORT}
-master = true
-processes = 4
-vacuum = true
-die-on-term = true
-plugins = python3
-env = FLASK_ENV=production
-EOF
-    echo "📝 Created temporary uWSGI .ini config: $TMP_INI"
+if command -v gunicorn >/dev/null && grep -q 'Flask' "$SCRIPT_PATH"; then
+    EXEC_CMD="gunicorn -b 127.0.0.1:8010 playcard_server:app"
+    SERVER_TYPE="gunicorn"
+elif command -v waitress-serve >/dev/null; then
+    EXEC_CMD="waitress-serve --host=127.0.0.1 --port=8010 playcard_server:app"
+    SERVER_TYPE="waitress"
+elif command -v uwsgi >/dev/null; then
+    EXEC_CMD="uwsgi --http 127.0.0.1:8010 --wsgi-file playcard_server.py --callable app"
+    SERVER_TYPE="uwsgi"
+else
+    EXEC_CMD="/usr/bin/python3 ${SCRIPT_PATH}"
+    SERVER_TYPE="flask"
 fi
 
-# Generate systemd unit
-case "$SERVER_TYPE" in
-    uwsgi)
-        EXEC_CMD="/usr/bin/uwsgi --ini ${UWSGI_APP_FILE}"
-        ;;
-    gunicorn)
-        EXEC_CMD="/usr/bin/gunicorn -w 4 -b 127.0.0.1:${PORT} playcard_server:app"
-        ;;
-    waitress)
-        EXEC_CMD="/usr/bin/waitress-serve --host=127.0.0.1 --port=${PORT} playcard_server:app"
-        ;;
-    flask|*)
-        EXEC_CMD="/usr/bin/python3 ${SCRIPT_PATH}"
-        ;;
-esac
+# Unit-Datei
+SERVICE_NAME="playcard-${SERVER_TYPE}.service"
+UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}"
+TMP_UNIT=$(mktemp "/tmp/${SERVICE_NAME}.XXXXXX")
 
 cat > "$TMP_UNIT" <<EOF
 [Unit]
@@ -83,64 +56,55 @@ After=network.target
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 WorkingDirectory=${CLONE_DIR}
-Environment=FLASK_ENV=production
 ExecStart=${EXEC_CMD}
 Restart=always
 RestartSec=3
-StandardOutput=journal
-StandardError=journal
+EOF
+
+# Nur bei Flask ENV setzen
+if [ "$SERVER_TYPE" = "flask" ]; then
+    echo 'Environment="FLASK_ENV=production"' >> "$TMP_UNIT"
+fi
+
+cat >> "$TMP_UNIT" <<EOF
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-echo -e "\n🧾 Generated systemd unit for \033[1m$SERVER_TYPE\033[0m:\n----------------------------------------"
+# Ausgabe
+echo -e "\n\033[1mGenerated systemd unit:\033[0m"
+echo "----------------------------------------"
 cat "$TMP_UNIT"
 echo "----------------------------------------"
+echo -e "\nTemporary file: \033[34m${TMP_UNIT}\033[0m"
 
-# Prompt installation
+# Entscheidung
 read -p $'\nInstall and enable systemd service now? [y/N] ' -n 1 -r
 echo
+
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo -e "\n💡 Skipped installation. Generated files:"
-    echo "Systemd unit: $TMP_UNIT"
-    [[ "$SERVER_TYPE" == "uwsgi" ]] && echo "uWSGI config: $TMP_INI"
+    echo -e "\nTo install manually:"
+    echo "  sudo mv \"${TMP_UNIT}\" \"${UNIT_FILE}\""
+    echo "  sudo systemctl daemon-reload"
+    echo "  sudo systemctl enable \"${SERVICE_NAME}\""
+    echo "  sudo systemctl start \"${SERVICE_NAME}\""
+    echo -e "\n\033[32mGive these steps to your admin if needed.\033[0m"
     exit 0
 fi
 
-# Move files
-echo "🚀 Installing..."
-sudo mv "$TMP_UNIT" "$UNIT_FILE"
-sudo chmod 644 "$UNIT_FILE"
-
-if [[ "$SERVER_TYPE" == "uwsgi" ]]; then
-    sudo mv "$TMP_INI" "$UWSGI_APP_FILE"
-    sudo ln -sf "$UWSGI_APP_FILE" /etc/uwsgi/apps-enabled/
+# Installationsteil (erst ab hier sudo)
+echo -e "\n\033[1mInstalling service as root...\033[0m"
+if ! sudo mv "$TMP_UNIT" "$UNIT_FILE"; then
+    echo -e "\033[31mError: sudo failed – not installed.\033[0m" >&2
+    echo "Temp file remains at: $TMP_UNIT"
+    exit 1
 fi
 
-# Activate
+sudo chmod 644 "$UNIT_FILE"
 sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE_NAME"
-sudo systemctl restart "$SERVICE_NAME"
+sudo systemctl start "$SERVICE_NAME"
 
-# Status output
-echo -e "\n✅ \033[1mService ${SERVICE_NAME} installed and started!\033[0m"
-echo "🔍 Check status: sudo systemctl status ${SERVICE_NAME}"
-echo "🌐 App should be available on: http://127.0.0.1:${PORT}"
-
-# Optional Apache Hint
-echo -e "\n💡 To reverse proxy with Apache, use this config:"
-cat <<EOF
-
-<Location "/musik/playcard">
-    ProxyPass "http://127.0.0.1:${PORT}"
-    ProxyPassReverse "http://127.0.0.1:${PORT}"
-    
-</Location>
-
-Enable required modules:
-  sudo a2enmod proxy proxy_http
-  sudo systemctl reload apache2
-EOF
-
-exit 0
+echo -e "\n\033[32mService installed and started: ${SERVICE_NAME}\033[0m"
+echo "Check: sudo systemctl status ${SERVICE_NAME}"
