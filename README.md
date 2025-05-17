@@ -60,6 +60,16 @@ export AUDIO_PATH="/absolute/path/to/your/audio/files"
 python3 playcard_server.py
 ```
 
+or use create_playcard_service.sh
+
+```bash
+./create_playcard_service.sh
+
+```
+
+
+
+
 By default the app runs on: `http://127.0.0.1:8010`
 
 → Runs on `http://localhost:8010` by default
