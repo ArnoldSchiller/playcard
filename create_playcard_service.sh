@@ -26,7 +26,8 @@ SERVICE_GROUP=$(stat -c '%G' "$CLONE_DIR")
 
 # Detect server options
 AVAILABLE_SERVERS=( )
-command -v uwsgi >/dev/null && AVAILABLE_SERVERS+=("uwsgi" "uwsgi-http")
+command -v uwsgi >/dev/null && AVAILABLE_SERVERS+=("uwsgi")
+command -v uwsgi_python3 >/dev/null && AVAILABLE_SERVERS+=("uswgi-http")
 command -v gunicorn >/dev/null && AVAILABLE_SERVERS+=("gunicorn")
 command -v waitress-serve >/dev/null && AVAILABLE_SERVERS+=("waitress")
 AVAILABLE_SERVERS+=("flask")
@@ -80,7 +81,7 @@ EOF
         cat > "$UWSGI_INI_TMP" <<EOF
 [uwsgi]
 module = playcard_server:app
-http = 127.0.0.1:${PORT}
+http-socket = 127.0.0.1:${PORT}
 master = true
 processes = 4
 vacuum = true
@@ -98,7 +99,7 @@ After=network.target
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 WorkingDirectory=${CLONE_DIR}
-ExecStart=/usr/bin/uwsgi --ini /etc/uwsgi/apps-available/playcard.ini
+ExecStart=/usr/bin/uwsgi_python3 --ini /etc/uwsgi/apps-available/playcard.ini
 Restart=always
 RestartSec=3
 
