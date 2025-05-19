@@ -14,9 +14,10 @@ from threading import Lock
 # -------------------------------
 # Configuration (identisch zu PHP)
 # -------------------------------
-SERVERROOT = "/var/www/html"
-MUSIC_PATH = "musik"
-PLAYCARD_ENDPOINT = "playcard"
+SERVERROOT = os.environ.get("SERVERROOT", "/var/www/html") # Default-Wert falls nicht gesetzt
+MUSIC_PATH = os.environ.get("MUSIC_PATH", "musik")
+PLAYCARD_ENDPOINT = os.environ.get("PLAYCARD_ENDPOINT", "playcard")
+
 
 FORBIDDEN_DIRS = [
     "Artist/Album",
