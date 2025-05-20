@@ -23,17 +23,17 @@ PLAYCARD_ENDPOINT = "playcard"
 
 FORBIDDEN_DIRS = [
     "Georg_Kreisler/Die_alten_boesen_Lieder",
-    "Georg_Kreisler/Die_Georg_Kreisler_Platte", 
+    "Folder Artist/Folder Album Single", 
     "Ernst Stankovski - ...es ist noch nicht so lange her ...",
     "wordpress",
     "phpgedview",
-    "schillerli"
+    "forbiddendir"
 ]
 
 
 MEDIA_DIRS = []
 for path in [
-    os.path.join(SERVERROOT, "/jaquearnoux"),
+    os.path.join(SERVERROOT, ""),
     "/home/radio/radio/ogg",
     os.environ.get("AUDIO_PATH")
 ]:
