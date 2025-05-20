@@ -5,7 +5,7 @@ import urllib.parse
 import locale
 import fcntl
 import random
-from flask import Flask, send_from_directory, abort, redirect, request, render_template_string, url_for
+from flask import Flask, send_from_directory, abort, jsonify, redirect, request, render_template_string, url_for
 from markupsafe import escape
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -683,6 +683,67 @@ def playcard():
         shuffle_url=shuffle_url,
         searchform=searchform_html()
     )
+
+# -------------------------------
+# API for Android
+# -------------------------------
+
+
+@app.route(f"/{MUSIC_PATH}/{PLAYCARD_ENDPOINT}/api/index")
+def get_index_json():
+    """Gibt den Medienindex als JSON zurück."""
+    structured = request.args.get('structured', '1') == '1'
+    search_value = request.args.get("search", "").strip()
+
+    if structured:
+        folder_map = generate_index(structured=True)
+        if search_value:
+            folder_map = filter_folder_map(folder_map, search_value)
+        # Konvertieren Sie das Dictionary in eine Liste von Objekten für einfacheres Parsen in der App
+        # oder lassen Sie es als Dictionary, je nachdem, wie die App die Struktur erwartet
+        return jsonify({
+            "type": "structured",
+            "data": folder_map
+        })
+    else:
+        entries = generate_index(structured=False)
+        if search_value:
+            entries = [e for e in entries if search_value.lower() in e['name'].lower()]
+        return jsonify({
+            "type": "flat",
+            "data": entries
+        })
+
+# Beispiel: JSON-Endpunkt für ein einzelnes Dateidetail (optional, kann aber nützlich sein)
+@app.route(f"/{MUSIC_PATH}/{PLAYCARD_ENDPOINT}/api/track_info")
+def get_track_info_json():
+    title_path = request.args.get("title")
+    if not title_path:
+        abort(400, "Missing title parameter")
+
+    file_info = find_file(title_path, ALLOWED_EXTENSIONS)
+    if not file_info:
+        abort(404, "File not found")
+
+    cover_url = None
+    cover_path = find_cover_image(file_info['path'], os.path.splitext(file_info['name'])[0])
+    if cover_path:
+        for media_root in MEDIA_DIRS:
+            if cover_path.startswith(media_root):
+                rel_cover = get_safe_relative_path(cover_path)
+                cover_url = url_for('serve_file', filename=rel_cover, _external=True) # _external=True für volle URL
+                break
+
+    return jsonify({
+        "name": file_info['name'],
+        "relative_path": file_info['rel_path'],
+        "extension": file_info['ext'],
+        "stream_url": url_for('serve_file', filename=file_info['rel_path'], _external=True),
+        "cover_image_url": cover_url
+    })
+
+
+
 
 
 # -------------------------------
