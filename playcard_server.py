@@ -35,6 +35,7 @@ MEDIA_DIRS = []
 for path in [
     os.path.join(SERVERROOT, ""),
     "/home/radio/radio/ogg",
+    "/home/schiller/Downloadsthinkpad",
     os.environ.get("AUDIO_PATH")
 ]:
     if path and os.path.isdir(path):
