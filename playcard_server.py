@@ -245,6 +245,33 @@ def get_safe_relative_path(absolute_path):
     relative_path = get_relative_path(absolute_path)
     return relative_path.encode('utf-8').decode('utf-8', 'replace') if relative_path else ''
 
+def extract_path_from_url(url_string):
+    """
+    Versucht, den relativen Pfad oder den Dateinamen aus einer vollständigen URL zu extrahieren.
+    """
+    if not url_string:
+        return ""
+    
+    # Prüfen, ob es eine absolute URL ist
+    if url_string.startswith(('http://', 'https://')):
+        parsed_url = urllib.parse.urlparse(url_string)
+        # Nehmen wir an, der relevante Pfad ist der Pfad-Teil der URL
+        # und wir wollen nur den Dateinamen oder den relativen Pfad ab `/musik/`
+        path_segments = parsed_url.path.strip('/').split('/')
+        
+        # Finde den Index von MUSIC_PATH (z.B. 'musik') in den Segmenten
+        try:
+            music_path_index = path_segments.index(MUSIC_PATH.lower()) # case-insensitive
+            # Wenn gefunden, nehmen wir alles danach.
+            # Beispiel: ['musik', 'ogg', '230620151819.ogg'] -> 'ogg/230620151819.ogg'
+            relevant_path = '/'.join(path_segments[music_path_index + 1:])
+            return safe_string(relevant_path) # Wichtig: Ergebnis bereinigen
+        except ValueError:
+            # MUSIC_PATH nicht in der URL gefunden, nehmen den letzten Teil als Dateinamen
+            return safe_string(path_segments[-1]) if path_segments else ""
+    else:
+        # Wenn es keine absolute URL ist, nehmen wir an, es ist bereits ein (relativer) Pfad
+        return safe_string(url_string) # Hier auch bereinigen
 
 
 def filter_media_dirs(dirs):
@@ -725,10 +752,12 @@ def playcard():
     if request.method == "POST":
         search_value = request.form.get("title", "").strip()
         if search_value:
-            return redirect(url_for('playcard', title=search_value))
+             search_value = extract_path_from_url(search_value)
+             return redirect(url_for('playcard', title=search_value))
     elif request.method == "GET":
         search_value = request.args.get("title", "").strip()
-    
+        # https http  URL-Extraktion 
+        search_value = extract_path_from_url(search_value)
     structured = request.args.get('structured', '1') == '1'
 
     # Suchlogik
