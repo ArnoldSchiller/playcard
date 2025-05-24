@@ -48,7 +48,7 @@ FORBIDDEN_DIRS = [
 MEDIA_DIRS = []
 for path in [
     os.path.join(SERVERROOT, "/jaquearnoux"),
-    "/home/radio/",
+    "/home/radio",
     "",
     os.environ.get("AUDIO_PATH")
 ]:
@@ -440,43 +440,88 @@ def find_cover_image(track_path, track_name_base):
     return RADIO_LOGO
 
 # find cover in media index
+import os
+import threading # Angenommen, du verwendest threading.Lock für INDEX_LOCK
+
+# Annahme: Diese sind global oder zugänglich definiert
+# Stelle sicher, dass RADIO_LOGO HIER definiert ist, damit es innerhalb dieser Funktion verwendet werden kann.
+RADIO_LOGO = "https://jaquearnoux.de/radio.png"
+# MEDIA_INDEX = [] # Dein tatsächlicher Medien-Index
+# IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'} # Deine tatsächlichen Bild-Erweiterungen
+# INDEX_LOCK = threading.Lock() # Dein Lock für den Index-Zugriff
+
+
 def _find_cover_by_name_in_index(track_basename, limit=1):
     """
     Sucht im MEDIA_INDEX nach dem besten passenden Cover-Bild anhand des Track-Basenamens.
     Priorisiert exakte Treffer, dann Teilstring-Treffer.
-    Gibt den besten Eintrag zurück oder None.
+    Gibt die URL des besten Treffers oder RADIO_LOGO zurück.
     """
     if not track_basename:
-        return None
+        return RADIO_LOGO # Hier direkt RADIO_LOGO, wenn der Basename leer ist
 
-    best_match = None
+    best_match_entry = None  # Speichert das gesamte 'entry' Dictionary des besten Matches
     best_score = -1
 
+    # --- HIER beginnt die Logik, die du bereits hattest, um image_entries zu filtern ---
     with INDEX_LOCK:
         image_extensions_without_dots = {ext.lstrip('.') for ext in IMAGE_EXTENSIONS}
         image_entries = [entry for entry in MEDIA_INDEX if entry.get('ext') in image_extensions_without_dots]
+    # --- Ende des bereits vorhandenen Teils ---
 
-        for entry in image_entries:
-            img_basename = entry.get('base', '') 
-            current_score = 0
+    # HIER kommt der Code aus der Schleife
+    for entry in image_entries:
+        img_basename = entry.get('base', '')
+        # img_url = entry.get('path') # Wir verwenden es unten, wenn es ein best_match wird
 
-            if img_basename == track_basename: 
-                current_score = 100
-            
-            elif img_basename and img_basename in track_basename: 
-                if track_basename.startswith(img_basename):
-                    current_score = 98
-                else:
-                    current_score = 95
-            
-            elif track_basename in img_basename: 
-                current_score = 90
+        current_score = -1 # Initialisiere Score für jedes Bild
 
-            if current_score > best_score:
-                best_score = current_score
-                best_match = entry
-    
-    return best_match
+        # --- Strikte Übereinstimmungen zuerst ---
+
+        # 1. Exakter Match (höchste Priorität)
+        if img_basename == track_basename:
+            current_score = 100
+
+        # 2. Track-Basename beginnt mit Bild-Basename, gefolgt von Trennzeichen
+        # Bsp: track="Album Name - Track", img="Album Name"
+        elif track_basename.startswith(img_basename) and \
+             len(track_basename) > len(img_basename) and \
+             (track_basename[len(img_basename):].lstrip().startswith("-") or \
+              track_basename[len(img_basename):].lstrip().startswith("_") or \
+              track_basename[len(img_basename):].lstrip().startswith(" ")):
+            current_score = 95
+
+        # 3. Bild-Basename beginnt mit Track-Basename, gefolgt von Trennzeichen
+        # Bsp: track="Album Name", img="Album Name - Cover"
+        elif img_basename.startswith(track_basename) and \
+             len(img_basename) > len(track_basename) and \
+             (img_basename[len(track_basename):].lstrip().startswith("-") or \
+              img_basename[len(track_basename):].lstrip().startswith("_") or \
+              img_basename[len(track_basename):].lstrip().startswith(" ")):
+            current_score = 90
+
+        # --- Lockerere, aber immer noch relativ sichere Übereinstimmungen (optional, wenn die obigen nicht reichen) ---
+        # (Die Kommentare lasse ich hier weg, da du sie ja schon kennst)
+
+        # elif current_score < 90 and track_basename in img_basename:
+        #     current_score = max(current_score, 70)
+        # elif current_score < 70 and img_basename in track_basename:
+        #     current_score = max(current_score, 60)
+
+
+        # Nur aktualisieren, wenn der aktuelle Score besser ist
+        if current_score > best_score:
+            best_score = current_score
+            best_match_entry = entry # Speichere das gesamte entry-Dictionary
+            # Wenn wir ein perfektes Match haben, können wir aufhören
+            if best_score == 100:
+                break # Das schnellste und beste Match wurde gefunden
+
+    # --- Die entscheidende Änderung hier ---
+    if best_match_entry and best_match_entry.get('path'):
+        return best_match_entry.get('path') # Gibt die URL des besten Matches zurück
+    else:
+        return RADIO_LOGO # Gibt RADIO_LOGO zurück, wenn kein passendes Match gefunden wurde
 
 
 def generate_open_graph_tags(file_info, request):
