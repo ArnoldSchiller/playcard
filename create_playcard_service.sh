@@ -257,6 +257,12 @@ echo "sudo systemctl reload apache2"
 echo -e "\n\033[32m End CONFIGURATION NOTES!\033[0m"
 echo "Check status with: systemctl status ${SERVICE_NAME}"
 
+# For uWSGI additional step
+if [ "$SERVER_TYPE" = "uwsgi" ]; then
+     echo -e "\n\033[1mAdditional steps for uWSGI:\033[0m"
+     echo "1. Ensure uWSGI is running: sudo systemctl enable --now uwsgi"
+     echo "2. Configure your web server (nginx/apache) to proxy to the uWSGI socket"
+fi
 
 
 exit 0
