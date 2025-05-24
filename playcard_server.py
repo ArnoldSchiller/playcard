@@ -47,8 +47,8 @@ FORBIDDEN_DIRS = [
 
 MEDIA_DIRS = []
 for path in [
-    os.path.join(SERVERROOT, ""),
-    "/home/radio/",
+    os.path.join(SERVERROOT, "/jaquearnoux"),
+    "/home/radio",
     "",
     os.environ.get("AUDIO_PATH")
 ]:
@@ -746,7 +746,7 @@ def render_index(structured, entries=None, folder_map=None, shuffle_url="#", sea
     )
 
 
-def render_player(file_info, request, cover_html=""):
+def render_player(file_info, request, cover_html=f'<img src="{{RADIO_LOGO}}" width="300" alt="Standard Cover"><br>'):
     """
     Rendert den Player-Bereich mit allen notwendigen Komponenten.
     Args:
@@ -775,7 +775,7 @@ def render_player(file_info, request, cover_html=""):
         """
         # Für iFrames ohne spezifisches Cover ein Standardbild oder nichts
         if not cover_html:
-             cover_html = f'<img src="{RADIO_LOGO}" width="300" alt="Standard Cover"><br>'
+             cover_html = f'<img src="{{RADIO_LOGO}}" width="300" alt="Standard Cover"><br>'
     else:
         # Direkte Medien-Datei (lokal oder extern)
         player_url = file_info['rel_path'] if file_info.get('is_external_url') else \
@@ -806,7 +806,7 @@ def render_player(file_info, request, cover_html=""):
             <title>{{ title|e }}</title>
             {{ og_tags|safe }}
             {# Standard OG-Image, kann von generate_open_graph_tags überschrieben werden #}
-            <meta property="og:image" content="{{RADIO_LOGO}}" />
+            <meta property="og:image" content="https://jaquearnoux.de/radio.png" />
             <link rel="stylesheet" href="/radio.css">
         </head>
         <body>
