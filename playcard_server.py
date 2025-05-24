@@ -47,8 +47,8 @@ FORBIDDEN_DIRS = [
 
 MEDIA_DIRS = []
 for path in [
-    os.path.join(SERVERROOT, "/jaquearnoux"),
-    "/home/radio",
+    os.path.join(SERVERROOT, ""),
+    "/home/radio/",
     "",
     os.environ.get("AUDIO_PATH")
 ]:
@@ -775,7 +775,7 @@ def render_player(file_info, request, cover_html=f'<img src="{{RADIO_LOGO}}" wid
         """
         # Für iFrames ohne spezifisches Cover ein Standardbild oder nichts
         if not cover_html:
-             cover_html = f'<img src="{{RADIO_LOGO}}" width="300" alt="Standard Cover"><br>'
+             cover_html = f'<img src="{RADIO_LOGO}" width="300" alt="Standard Cover"><br>'
     else:
         # Direkte Medien-Datei (lokal oder extern)
         player_url = file_info['rel_path'] if file_info.get('is_external_url') else \
@@ -1138,7 +1138,7 @@ def _format_song_for_json(file_info):
     best_cover_entry = _find_cover_by_name_in_index(track_name_base) 
 
     if best_cover_entry:
-        cover_url = url_for('serve_file', filename=best_cover_entry.get('rel_path'), _external=True)
+        cover_url = RADIO_LOGO  # url_for('serve_file', filename=best_cover_entry.get('rel_path'), _external=True)
     else:
         cover_url = RADIO_LOGO # url_for('static', filename='radio.png', _external=True)
 
