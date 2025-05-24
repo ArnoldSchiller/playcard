@@ -47,8 +47,8 @@ FORBIDDEN_DIRS = [
 
 MEDIA_DIRS = []
 for path in [
-    os.path.join(SERVERROOT, "/jaquearnoux"),
-    "/home/radio",
+    os.path.join(SERVERROOT, ""),
+    "/home/radio/",
     "",
     os.environ.get("AUDIO_PATH")
 ]:
@@ -438,17 +438,6 @@ def find_cover_image(track_path, track_name_base):
     if candidates:
         return sorted(candidates, key=lambda x: -x['score'])[0]['path']
     return RADIO_LOGO
-
-# find cover in media index
-import os
-import threading # Angenommen, du verwendest threading.Lock für INDEX_LOCK
-
-# Annahme: Diese sind global oder zugänglich definiert
-# Stelle sicher, dass RADIO_LOGO HIER definiert ist, damit es innerhalb dieser Funktion verwendet werden kann.
-RADIO_LOGO = "https://jaquearnoux.de/radio.png"
-# MEDIA_INDEX = [] # Dein tatsächlicher Medien-Index
-# IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'} # Deine tatsächlichen Bild-Erweiterungen
-# INDEX_LOCK = threading.Lock() # Dein Lock für den Index-Zugriff
 
 
 def _find_cover_by_name_in_index(track_basename, limit=1):
@@ -1325,7 +1314,7 @@ if __name__ == "__main__":
     run_once_global()
 
     # Lokaler Entwicklungsmodus
-    app.run(host="127.0.0.1", port=8010, threaded=True) # debug=True hier für detaillierte Fehler
+    app.run(host="127.0.0.1", port=8010, threaded=True, debug=True) # debug=True hier für detaillierte Fehler
 
 else:
     # Für WSGI-Server (z.B. uWSGI)
