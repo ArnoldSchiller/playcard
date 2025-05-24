@@ -47,7 +47,7 @@ FORBIDDEN_DIRS = [
 
 MEDIA_DIRS = []
 for path in [
-    os.path.join(SERVERROOT, ""),
+    os.path.join(SERVERROOT, "/jaquearnoux"),
     "/home/radio/",
     "",
     os.environ.get("AUDIO_PATH")
@@ -741,7 +741,7 @@ def render_player(file_info, request, cover_html=""):
         """
         # Für iFrames ohne spezifisches Cover ein Standardbild oder nichts
         if not cover_html:
-             cover_html = '<img src="{RADIO_LOGO}" width="300" alt="Standard Cover"><br>'
+             cover_html = f'<img src="{RADIO_LOGO}" width="300" alt="Standard Cover"><br>'
     else:
         # Direkte Medien-Datei (lokal oder extern)
         player_url = file_info['rel_path'] if file_info.get('is_external_url') else \
@@ -772,7 +772,7 @@ def render_player(file_info, request, cover_html=""):
             <title>{{ title|e }}</title>
             {{ og_tags|safe }}
             {# Standard OG-Image, kann von generate_open_graph_tags überschrieben werden #}
-            <meta property="og:image" content="{RADIO_LOGO}" />
+            <meta property="og:image" content="{{RADIO_LOGO}}" />
             <link rel="stylesheet" href="/radio.css">
         </head>
         <body>
@@ -943,7 +943,7 @@ def playcard():
                     'path': None
                 }
                 # Für externe URLs gibt es kein lokales Cover-Bild. Hier könnte ein Standardbild geladen werden.
-                cover_html = '<img src="{RADIO_LOGO}" width="300" alt="Standard Cover"><br>' # Beispiel: Standard-Cover
+                cover_html = f'<img src="{RADIO_LOGO}" width="300" alt="Standard Cover"><br>' # Beispiel: Standard-Cover
                 return render_player(file_info, request, cover_html)
             else:
                 # Es ist eine HTTP/HTTPS URL, aber keine direkte Mediendatei und kein YouTube -> behandle als iFrame
@@ -956,7 +956,7 @@ def playcard():
                     'is_iframe': True, # Wird als iFrame eingebettet
                     'path': None
                 }
-                cover_html = '<img src="{RADIO_LOGO}" width="300" alt="Standard Cover"><br>'
+                cover_html = f'<img src="{RADIO_LOGO}" width="300" alt="Standard Cover"><br>'
                 return render_player(file_info, request, cover_html)
         else:
             # Es ist keine externe URL, also suche lokal
