@@ -1,0 +1,68 @@
+// lib/widgets/radio_media_player.dart
+
+import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
+
+class RadioMediaPlayer extends StatefulWidget {
+  const RadioMediaPlayer({super.key});
+
+  @override
+  State<RadioMediaPlayer> createState() => RadioMediaPlayerState();
+}
+
+class RadioMediaPlayerState extends State<RadioMediaPlayer> {
+  late Player _player; // Der Player selbst
+
+  // Getter, um den Player von außen zugänglich zu machen
+  Player get player => _player;
+
+  @override
+  void initState() {
+    super.initState();
+    ////print('RadioMediaPlayerState: initState aufgerufen. Player wird initialisiert...');
+    _player = Player();
+    // Listener für Fehler oder Wiedergabeende (für Debugging/Status)
+    _player.stream.error.listen((error) {
+      ////print('RadioMediaPlayerState: Player Fehler: $error');
+    });
+    _player.stream.completed.listen((completed) {
+      ////print('RadioMediaPlayerState: Wiedergabe beendet.');
+    });
+    _player.stream.log.listen((event) {
+      ////print('MediaKit Log: ${event.text}');
+    });
+    ////print('RadioMediaPlayerState: Player initialisiert.');
+  }
+
+  void play(String streamUrl) {
+    ////print('RadioMediaPlayerState: play($streamUrl) aufgerufen.');
+    try {
+      final uri = Uri.parse(streamUrl);
+      _player.open(Media(uri.toString()), play: true);
+      ////print('RadioMediaPlayerState: _player.open() für $streamUrl aufgerufen.');
+    } catch (e) {
+      ////print('RadioMediaPlayerState: Fehler beim Öffnen des Streams: $e');
+      rethrow; // Wichtig: Fehler weitergeben
+    }
+  }
+
+  // Zusätzliche Methoden für die Steuerung von außen
+  void pause() => _player.pause();
+  void resume() => _player.play();
+  void seek(Duration position) => _player.seek(position);
+
+  @override
+  Widget build(BuildContext context) {
+    ////print('RadioMediaPlayerState: build aufgerufen.');
+    return const SizedBox.shrink(); // Bleibt unsichtbar im Hintergrund
+  }
+
+  @override
+  void dispose() {
+    ////print('RadioMediaPlayerState: dispose aufgerufen. Player wird entsorgt...');
+    _player.dispose();
+    ////print('RadioMediaPlayerState: Player entsorgt.');
+    super.dispose();
+  }
+}
