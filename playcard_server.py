@@ -1321,7 +1321,7 @@ if __name__ == "__main__":
     run_once_global()
 
     # Lokaler Entwicklungsmodus
-    app.run(host="127.0.0.1", port=8010, threaded=True, debug=True) # debug=True hier für detaillierte Fehler
+    app.run(host="127.0.0.1", port=8010, threaded=True) # debug=True hier für detaillierte Fehler
 
 else:
     # Für WSGI-Server (z.B. uWSGI)
