@@ -137,8 +137,14 @@ location /musik {
 ```
 
 ## 📜 License
-BSD 2-Clause License  
-![License](https://img.shields.io/badge/license-BSD%202--Clause-blue.svg)
+This project is licensed under the **MIT License 1.0**.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Copyright (c) 2025 Arnold Schiller <schiller@babsi.de>
+
+For the Media-kit library, the copyright is:
+Copyright (c) 2021 & onwards Hitesh Kumar Saini <saini123hitesh@gmail.com>
+
+
 
 ## Apache advanced configuration
 

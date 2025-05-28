@@ -157,8 +157,9 @@ def is_youtube_url(url_string):
 def run_once_global():
     """Initialisiert den Media-Index genau einmal pro Serverstart"""
     try:
-        # Lockfile im temp directory des Benutzers
-        lock_dir = os.path.join(os.environ.get('XDG_RUNTIME_DIR', '/tmp'), 'playcard')
+        # Lockfile im .playcard directory des Benutzers
+        lock_dir = os.path.join(os.path.expanduser('~'), '.playcard')
+        # Stelle sicher, dass das Verzeichnis existiert
         os.makedirs(lock_dir, exist_ok=True)
         lockfile = os.path.join(lock_dir, f'{PLAYCARD_ENDPOINT}.lock')
         
@@ -897,7 +898,10 @@ def get_current_radio_status():
 def serve_file(filename):
     #""" Dateiauslieferung """
     try:
-        filename = secure_filename(filename)
+        # Das:
+        # filename = secure_filename(filename)
+        # machen wir hier nicht wir wollen Dateien zum Streamen
+        # ausliefern. 
         filename = os.path.normpath(filename)
         for media_root in MEDIA_DIRS:
             full_path = os.path.normpath(os.path.join(media_root, filename))
