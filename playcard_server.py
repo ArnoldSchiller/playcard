@@ -14,6 +14,7 @@ from flask_limiter.util import get_remote_address
 from difflib import get_close_matches
 from threading import Lock
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
 
 # -------------------------------
 # Configuration (identisch zu PHP)
@@ -862,6 +863,7 @@ def get_current_radio_status():
 def serve_file(filename):
     """Identische Dateiauslieferung wie in PHP"""
     try:
+        filename = secure_filename(filename)
         filename = os.path.normpath(filename)
         for media_root in MEDIA_DIRS:
             full_path = os.path.normpath(os.path.join(media_root, filename))
