@@ -14,6 +14,7 @@ from flask_limiter.util import get_remote_address
 from difflib import get_close_matches
 from threading import Lock
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
 
 # -------------------------------
 # Configuration (identisch zu PHP)
@@ -864,6 +865,7 @@ def serve_file(filename):
     try:
         filename = os.path.normpath(filename)
         for media_root in MEDIA_DIRS:
+            filename = secure_filename(filename)
             full_path = os.path.normpath(os.path.join(media_root, filename))
             # Critical: Ensure the path is within the media_root to prevent directory traversal
             if not full_path.startswith(os.path.normpath(media_root)):
